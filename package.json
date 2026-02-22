@@ -1,0 +1,25 @@
+{
+  "name": "pointerdriver",
+  "version": "1.0.0",
+  "description": "Simulate pointer, stylus, and touch input on a DOM element",
+  "type": "module",
+  "exports": "./index.js",
+  "bin": {
+    "pointerdriver": "bin/pointerdriver.js"
+  },
+  "files": ["index.js", "src/", "bin/", "fonts/"],
+  "scripts": {
+    "start": "node ./bin/pointerdriver.js",
+    "test": "node --test \"**/*.test.js\""
+  },
+  "engines": { "node": ">=24" },
+  "keywords": ["pointer", "pencil", "stylus", "touch", "simulate"],
+  "author": "Nicholas Kyriakides",
+  "license": "MIT",
+  "dependencies": {
+    "serve": "^14.2.5"
+  },
+  "devDependencies": {
+    "jsdom": "^26.0.0"
+  }
+}
