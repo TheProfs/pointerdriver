@@ -13,36 +13,55 @@ npm i github:TheProfs/pointerdriver
 ## Usage  
 
 ```js
-import { PointerDriver } from 'pointerdriver'
+import {
+  StrokeMotion,
+  GlideMotion,
+  DragMotion,
+  PinchMotion,
+  SwipeMotion,
+  TwistMotion,
+  WriteMotion,
+  Keyboard,
+} from 'pointerdriver'
 
-const driver = new PointerDriver('#el')
+const el = document.querySelector('#el')
 
-// Pencil
-await driver.stroke([[30, 50, 0], [60, 80, 16]]) // pen drag
+await new StrokeMotion(el, [[30, 50, 0], [60, 80, 16]]).perform() // pen  
+await new GlideMotion(el, [[30, 50, 0], [60, 80, 16]]).perform()  // finger  
+await new DragMotion(el, [[30, 50, 0], [60, 80, 16]]).perform()   // mouse  
 
-// Mouse
-await driver.drag([[30, 50, 0], [60, 80, 16]])   // mouse drag
+await new PinchMotion(el, 1.2).perform()       // 2 fingers  
+await new SwipeMotion(el, 80, 0).perform()     // 2 fingers  
+await new TwistMotion(el, 45).perform()        // 2 fingers  
 
-// Touch
-await driver.glide([[
-  30, 50, 0], [60, 80, 16]
-]])                         // one-finger drag
-await driver.pinch(2)       // two-finger pinch
-await driver.swipe(80, 0)   // two-finger swipe
-await driver.twist()        // two-finger twist
+await new WriteMotion(el, 'Hello', {
+  font: 'data:image/svg+xml,...',
+  fontSize: 48,
+}).perform()
+
+await new Keyboard(el).combo([['Shift', 'a']], { delay: 0 })
 ```
 
 ### Text strokes  
 
-`stroke()` accepts a string,  
-but you must provide an SVG font URL in the constructor.  
+`WriteMotion` needs an SVG font URL.  
+Use a `data:` URL or any hosted SVG font file.  
 
 ```js
-const driver = new PointerDriver('#el', {
-  font: 'http://127.0.0.1:5619/fonts/EMS_Elfin_Smooth.svg',
-})
+const svg = [
+  '<svg xmlns="http://www.w3.org/2000/svg">',
+  '<defs>',
+  '<font horiz-adv-x="1000">',
+  '<font-face units-per-em="1000" ascent="800" descent="-200" />',
+  '<glyph unicode="A" horiz-adv-x="1000" d="M0,0 L100,0 Z" />',
+  '</font>',
+  '</defs>',
+  '</svg>',
+].join('')
 
-await driver.stroke('Hello', { fontSize: 48 })
+const font = `data:image/svg+xml,${encodeURIComponent(svg)}`
+
+await new WriteMotion(el, 'A', { font, fontSize: 48 }).perform()
 ```
 
 ## Server  

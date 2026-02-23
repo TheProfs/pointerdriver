@@ -73,6 +73,7 @@ export const withDom = async fn => {
     'PointerEvent',
     'Touch',
     'TouchEvent',
+    'GestureEvent',
   ]
 
   const prev = new Map(
@@ -106,6 +107,7 @@ export const withDom = async fn => {
     }
   })
   set('TouchEvent', makeEvent(dom.window.Event))
+  set('GestureEvent', makeEvent(dom.window.Event))
 
   try {
     return await fn(dom)
