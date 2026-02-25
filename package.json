@@ -1,16 +1,19 @@
 {
   "name": "pointerdriver",
   "version": "1.0.0",
-  "description": "Simulate stylus, touch, mouse, and gesture input on a DOM element",
+  "description": "Simulate PointerEvent input on a DOM element",
   "type": "module",
   "exports": "./index.js",
+  "imports": {
+    "#test/utils": "./test/utils/index.js"
+  },
   "bin": {
     "pointerdriver": "bin/pointerdriver.js"
   },
   "files": ["index.js", "src/", "bin/", "docs/"],
   "scripts": {
     "start": "node ./bin/pointerdriver.js",
-    "test": "node --test \"**/*.test.js\""
+    "test": "node --test --test-concurrency=1 --test-timeout=5000 \"**/*.test.js\""
   },
   "engines": { "node": ">=24" },
   "keywords": ["pointer", "pencil", "stylus", "touch", "simulate"],

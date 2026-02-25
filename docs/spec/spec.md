@@ -103,7 +103,7 @@ capture(target)
 release(target)
 touch(target, point) → Touch | null
 get id → number
-get target → Element
+get target → Element | null
 get type → string
 get emitsTouch → boolean
 get implicitCapture → boolean
@@ -250,12 +250,10 @@ get el → Element
 get platform → object
 pointer(opts) → Pointer
   creates via this.platform[this.device](opts)
-hit(x, y) → Element
-  resolves document.elementFromPoint,
+hit(point) → Element
+  resolves document.elementFromPoint(point.x, point.y),
   validates containment within el,
   throws RangeError on miss
-tryHit(x, y) → Element | null
-  same as hit but returns null on miss
 delay(ms) → Promise
 touchstart(pointer, point, gesture)
 touchmove(pointer, point, gesture)
@@ -555,8 +553,10 @@ Each file represents a domain concept, not a generic helper.
 pointerdriver/
 ├── index.js
 ├── src/
-│   ├── pointer.js     // Pointer + iOS/WebKit platform
-│   ├── motion.js      // Motion base
+│   ├── pointer/
+│   │   └── index.js   // Pointer + iOS/WebKit platform
+│   ├── motion/
+│   │   └── index.js   // Motion base
 │   ├── motions/
 │   │   ├── glide/
 │   │   │   ├── index.js
@@ -571,7 +571,7 @@ pointerdriver/
 │   └── font.js
 ├── test/
 │   └── utils/
-│       └── jsdom.js
+│       └── index.js
 └── bin/
     └── pointerdriver.js
 ```
@@ -584,7 +584,7 @@ Each pointer and motion has colocated unit tests.
 
 All tests discovered via: `node --test "**/*.test.js"`
 
-Shared JSDOM harness: `test/utils/jsdom.js`.
+Shared JSDOM harness: `test/utils/index.js`.
 
 ### Per-motion test expectations
 
