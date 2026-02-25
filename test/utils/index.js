@@ -91,8 +91,33 @@ export function mockListen(types) {
       type: e.type,
       target: e.target?.id || e.target?.tagName || null,
       pointerType: e.pointerType ?? null,
+      hasCapture: e.hasCapture ?? null,
       movementX: e.movementX ?? null,
       movementY: e.movementY ?? null,
+      scale: e.scale ?? null,
+      rotation: e.rotation ?? null,
+      touches: e.touches
+        ? [...e.touches].map(t => ({
+          id: t.identifier ?? null,
+          target: t.target?.id || t.target?.tagName || null,
+          x: t.clientX ?? null,
+          y: t.clientY ?? null,
+        }))
+        : null,
+      targetTouches: e.targetTouches
+        ? [...e.targetTouches].map(t => ({
+          id: t.identifier ?? null,
+          target: t.target?.id || t.target?.tagName || null,
+        }))
+        : null,
+      changedTouches: e.changedTouches
+        ? [...e.changedTouches].map(t => ({
+          id: t.identifier ?? null,
+          target: t.target?.id || t.target?.tagName || null,
+          x: t.clientX ?? null,
+          y: t.clientY ?? null,
+        }))
+        : null,
     })
 
     doc.addEventListener(type, handler, { capture: true })

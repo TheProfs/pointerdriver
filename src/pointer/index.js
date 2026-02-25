@@ -253,6 +253,60 @@ export class MousePointer extends Pointer {
 
 export class IosMousePointer extends MousePointer {}
 
+export class TouchPointer extends Pointer {
+  get type() { return 'touch' }
+  get emitsTouch() { return true }
+  get implicitCapture() { return true }
+
+  props(i, total) {
+    return {
+      width: 42,
+      height: 42,
+      pressure: 0,
+      tangentialPressure: 0,
+      tiltX: 0,
+      tiltY: 0,
+      twist: 0,
+      altitudeAngle: Math.PI / 2,
+      azimuthAngle: 0,
+    }
+  }
+
+  touch(target, point) {
+    const Touch = globalThis.Touch
+    if (typeof Touch !== 'function')
+      throw new Error('Touch is not available in this environment')
+
+    const { width } = this.props(0, 1)
+
+    return new Touch({
+      identifier: this.id,
+      target,
+      clientX: point.x,
+      clientY: point.y,
+      pageX: point.x,
+      pageY: point.y,
+      screenX: point.x,
+      screenY: point.y,
+      radiusX: width / 2,
+      radiusY: 0,
+      rotationAngle: 0,
+      force: 0,
+    })
+  }
+}
+
+export class IosTouchPointer extends TouchPointer {
+  props(i, total) {
+    return {
+      ...super.props(i, total),
+      width: 41.72413777559996,
+      height: 41.72413777559996,
+    }
+  }
+}
+
 export const webkit = {
   mouse: IosMousePointer,
+  touch: IosTouchPointer,
 }
