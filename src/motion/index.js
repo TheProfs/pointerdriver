@@ -53,9 +53,6 @@ export class Motion {
     const changed = pointer.touch(target, point)
 
     this.#dispatchTouch('touchstart', target, changed, gesture)
-
-    if (pointer.implicitCapture)
-      pointer.capture(target)
   }
 
   touchmove(pointer, point, gesture = { scale: 1, rotation: 0 }) {

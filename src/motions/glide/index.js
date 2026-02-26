@@ -56,6 +56,7 @@ export class GlideMotion extends Motion {
 
     try {
       this.touchstart(pointer, point)
+      pointer.capture(target)
 
       for (let i = 1; i < points.length; i++) {
         await this.delay(points[i].createdAt - points[i - 1].createdAt)
@@ -82,4 +83,3 @@ export class GlideMotion extends Motion {
     }
   }
 }
-

@@ -17,6 +17,19 @@ const prefixLen = (a, b) => {
   return i
 }
 
+const eventDefaults = type => ({
+  pointerover: { bubbles: true, cancelable: true, composed: true },
+  pointerenter: { bubbles: false, cancelable: false, composed: false },
+  pointerdown: { bubbles: true, cancelable: true, composed: true },
+  pointermove: { bubbles: true, cancelable: true, composed: true },
+  pointerup: { bubbles: true, cancelable: true, composed: true },
+  pointerout: { bubbles: true, cancelable: true, composed: true },
+  pointerleave: { bubbles: false, cancelable: false, composed: false },
+  pointercancel: { bubbles: true, cancelable: true, composed: true },
+  gotpointercapture: { bubbles: true, cancelable: false, composed: true },
+  lostpointercapture: { bubbles: true, cancelable: false, composed: true },
+})[type] ?? { bubbles: true, cancelable: true, composed: true }
+
 export class Pointer {
   static id = () => {
     const { crypto } = globalThis
@@ -136,11 +149,11 @@ export class Pointer {
   release(target) {
     if (!this.#captureTarget) return
 
+    this.#captureTarget = null
+
     this.#dispatch('lostpointercapture', target, this.#lastPoint ?? null, {
       bubbles: true,
     })
-
-    this.#captureTarget = null
   }
 
   touch(target, point) { return null }
@@ -195,6 +208,8 @@ export class Pointer {
     if (typeof Event !== 'function')
       throw new Error('PointerEvent is not available in this environment')
 
+    const defaults = eventDefaults(type)
+
     const base = {
       pointerId: this.#id,
       pointerType: this.type,
@@ -216,13 +231,16 @@ export class Pointer {
     const props = this.props(i, total)
 
     const movement =
-      type === 'pointermove' && this.type === 'mouse'
+      type === 'pointermove'
         ? this.#movement(point)
         : {}
 
-    const init = { ...base, ...coords, ...props, ...movement, ...extra }
+    const init = { ...defaults, ...base, ...coords, ...props, ...movement, ...extra }
 
     target.dispatchEvent(new Event(type, init))
+
+    if (point)
+      this.#lastPoint = point
   }
 
   #movement(point) {
