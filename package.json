@@ -10,7 +10,7 @@
   "bin": {
     "pointerdriver": "bin/pointerdriver.js"
   },
-  "files": ["index.js", "src/", "bin/", "docs/"],
+  "files": ["index.js", "src/", "bin/", "docs/", "!docs/spec/*.zip"],
   "scripts": {
     "start": "node ./bin/pointerdriver.js",
     "test": "node --test --test-concurrency=1 --test-timeout=5000 \"**/*.test.js\""

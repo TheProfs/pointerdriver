@@ -30,6 +30,22 @@ const eventDefaults = type => ({
   lostpointercapture: { bubbles: true, cancelable: false, composed: true },
 })[type] ?? { bubbles: true, cancelable: true, composed: true }
 
+const clamp = (min, max, n) =>
+  Math.min(max, Math.max(min, n))
+
+const rand01 = seed => {
+  let t = (seed + 0x6d2b79f5) >>> 0
+  t = Math.imul(t ^ t >>> 15, t | 1)
+  t ^= t + Math.imul(t ^ t >>> 7, t | 61)
+  return ((t ^ t >>> 14) >>> 0) / 4294967296
+}
+
+const phase = seed =>
+  rand01(seed) * Math.PI * 2
+
+const drift = (min, max, t, phi) =>
+  min + (max - min) * ((Math.sin(Math.PI * 2 * t + phi) + 1) / 2)
+
 export class Pointer {
   static id = () => {
     const { crypto } = globalThis
@@ -141,6 +157,12 @@ export class Pointer {
 
   capture(target) {
     this.#captureTarget = target
+
+    if (target !== this.#target) {
+      this.#target = target
+      this.#path = pathOf(target)
+    }
+
     this.#dispatch('gotpointercapture', target, this.#lastPoint ?? null, {
       bubbles: true,
     })
@@ -256,6 +278,76 @@ export class Pointer {
   }
 }
 
+export class PenPointer extends Pointer {
+  get type() { return 'pen' }
+  get emitsTouch() { return true }
+
+  props(i, total) {
+    return {
+      width: 0.5,
+      height: 0.5,
+      pressure: 0.5,
+      tangentialPressure: 0,
+      tiltX: 0,
+      tiltY: 0,
+      twist: 0,
+      altitudeAngle: 1,
+      azimuthAngle: 0.6,
+    }
+  }
+
+  touch(target, point) {
+    const Touch = globalThis.Touch
+    if (typeof Touch !== 'function')
+      throw new Error('Touch is not available in this environment')
+
+    const { width, height } = this.props(0, 1)
+
+    return new Touch({
+      identifier: this.id,
+      target,
+      clientX: point.x,
+      clientY: point.y,
+      pageX: point.x,
+      pageY: point.y,
+      screenX: point.x,
+      screenY: point.y,
+      radiusX: width / 2,
+      radiusY: height / 2,
+      rotationAngle: 0,
+      force: 0,
+    })
+  }
+}
+
+export class IosPenPointer extends PenPointer {
+  props(i, total) {
+    const t = total <= 1 ? 0 : i / (total - 1)
+    const seed = this.id
+
+    const pressureBase =
+      0.08 + 0.52 * (Math.sin(Math.PI * t) ** 8)
+
+    const noise =
+      (rand01(seed + 10_000 + i * 101) - 0.5) * 0.04
+
+    const pressure =
+      clamp(0.08, 0.6, pressureBase + noise)
+
+    return {
+      width: 0.5,
+      height: 0.5,
+      pressure,
+      tiltX: drift(22, 35, t, phase(seed + 1)),
+      tiltY: drift(20, 30, t, phase(seed + 2)),
+      tangentialPressure: 0,
+      twist: 0,
+      altitudeAngle: drift(0.86, 1.04, t, phase(seed + 3)),
+      azimuthAngle: drift(0.47, 0.83, t, phase(seed + 4)),
+    }
+  }
+}
+
 export class MousePointer extends Pointer {
   get type() { return 'mouse' }
   props(i, total) {
@@ -295,7 +387,7 @@ export class TouchPointer extends Pointer {
     if (typeof Touch !== 'function')
       throw new Error('Touch is not available in this environment')
 
-    const { width } = this.props(0, 1)
+    const { width, height } = this.props(0, 1)
 
     return new Touch({
       identifier: this.id,
@@ -307,7 +399,7 @@ export class TouchPointer extends Pointer {
       screenX: point.x,
       screenY: point.y,
       radiusX: width / 2,
-      radiusY: 0,
+      radiusY: height / 2,
       rotationAngle: 0,
       force: 0,
     })
@@ -325,6 +417,7 @@ export class IosTouchPointer extends TouchPointer {
 }
 
 export const webkit = {
+  pen: IosPenPointer,
   mouse: IosMousePointer,
   touch: IosTouchPointer,
 }

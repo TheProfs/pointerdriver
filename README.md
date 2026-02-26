@@ -13,7 +13,7 @@ npm i github:TheProfs/pointerdriver
 ## Usage  
 
 ```js
-import { DragMotion } from 'pointerdriver'
+import { DragMotion, GlideMotion, StrokeMotion } from 'pointerdriver'
 
 const el = document.querySelector('#el')
 
@@ -23,7 +23,8 @@ await new DragMotion(el, [
 ]).perform()
 ```
 
-`DragMotion` points are `[x, y, ms]`.  
+`DragMotion` (mouse), `GlideMotion` (finger), and `StrokeMotion` (pen)  
+take points as `[x, y, ms]`.  
 `ms` is the timestamp offset since the start of the motion.  
 Timestamps must be non-decreasing.  
 
