@@ -91,6 +91,8 @@ export function mockListen(types) {
       type: e.type,
       target: e.target?.id || e.target?.tagName || null,
       pointerType: e.pointerType ?? null,
+      pointerId: e.pointerId ?? null,
+      isPrimary: e.isPrimary ?? null,
       hasCapture: e.hasCapture ?? null,
       movementX: e.movementX ?? null,
       movementY: e.movementY ?? null,

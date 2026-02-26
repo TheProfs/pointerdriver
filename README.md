@@ -13,7 +13,7 @@ npm i github:TheProfs/pointerdriver
 ## Usage  
 
 ```js
-import { DragMotion, GlideMotion, StrokeMotion } from 'pointerdriver'
+import { DragMotion, GlideMotion, StrokeMotion, PinchMotion } from 'pointerdriver'
 
 const el = document.querySelector('#el')
 
@@ -21,12 +21,15 @@ await new DragMotion(el, [
   [30, 50, 0],
   [60, 80, 16],
 ]).perform()
+
+await new PinchMotion(el, 2, { x: 60, y: 80 }).perform()
 ```
 
 `DragMotion` (mouse), `GlideMotion` (finger), and `StrokeMotion` (pen)  
 take points as `[x, y, ms]`.  
 `ms` is the timestamp offset since the start of the motion.  
 Timestamps must be non-decreasing.  
+`PinchMotion` takes `scale` and `{ x, y, distance, steps }`.  
 
 ## Spec  
 
