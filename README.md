@@ -13,26 +13,30 @@ npm i github:TheProfs/pointerdriver
 ## Usage  
 
 ```js
-import { DragMotion, GlideMotion, StrokeMotion, PinchMotion, TwistMotion } from 'pointerdriver'
+import { 
+  DragMotion, GlideMotion, StrokeMotion, 
+  PinchMotion, TwistMotion 
+} from 'pointerdriver'
 
-const el = document.querySelector('#el')
-
-await new DragMotion(el, [
+await new DragMotion(document.querySelector('#el'), [
   [30, 50, 0],
   [60, 80, 16],
 ]).perform()
 
-await new PinchMotion(el, 2, { x: 60, y: 80 }).perform()
+await new PinchMotion(document.querySelector('#el'), 2, { 
+  x: 60, y: 80 
+}).perform()
 
-await new TwistMotion(el, 45, { x: 60, y: 80 }).perform()
+await new TwistMotion(document.querySelector('#el'), 45, { 
+  x: 60, y: 80 
+}).perform()
 ```
 
-`DragMotion` (mouse), `GlideMotion` (finger), and `StrokeMotion` (pen)  
-take points as `[x, y, ms]`.  
-`ms` is the timestamp offset since the start of the motion.  
-Timestamps must be non-decreasing.  
-`PinchMotion` takes `scale` and `{ x, y, distance, steps }`.  
-`TwistMotion` takes `degrees` and `{ x, y, radius, steps }` (degrees can be negative).  
+- `DragMotion`, `GlideMotion` and `StrokeMotion` take points as `[x, y, ms]`.  
+- `ms` is the timestamp offset since the start of the motion; and must be 
+  *monotonically increasing* and *non-negative*.
+- `PinchMotion` takes `scale` and `{ x, y, distance, steps }`.  
+- `TwistMotion` takes `degrees` and `{ x, y, radius, steps }` (can be negative).  
 
 ## Spec  
 
@@ -59,4 +63,4 @@ npm test
 MIT  
 
 [test-badge]: https://github.com/TheProfs/pointerdriver/actions/workflows/test.yml/badge.svg  
-[test]: https://github.com/TheProfs/pointerdriver/actions/workflows/test.yml  
+[test]: https://github.com/TheProfs/pointerdriver/actions/workflows/test.yml
