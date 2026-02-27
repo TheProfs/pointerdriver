@@ -84,20 +84,20 @@ test('DragMotion', async t => {
       )
     })
 
-    await t.test('emits expected pointer event sequence', async t => {
+    await t.test('emits expected event sequence', async t => {
       const el = hit(document.body.appendChild(
         Object.assign(document.createElement('div'), { id: 'el' })
       ))
 
       const dispatched = t.mockListen([
         'pointercancel',
-        'pointerover',
-        'pointerenter',
-        'pointerdown',
-        'pointermove',
-        'pointerup',
-        'pointerout',
-        'pointerleave',
+        'pointerover', 'mouseover',
+        'pointerenter', 'mouseenter',
+        'pointerdown', 'mousedown',
+        'pointermove', 'mousemove',
+        'pointerup', 'mouseup',
+        'pointerout', 'mouseout',
+        'pointerleave', 'mouseleave',
         'touchstart',
         'gotpointercapture',
         'lostpointercapture',
@@ -110,16 +110,27 @@ test('DragMotion', async t => {
 
       t.assert.eventSequence(dispatched, [
         'pointerover@el',
+        'mouseover@el',
         'pointerenter@HTML',
+        'mouseenter@HTML',
         'pointerenter@BODY',
+        'mouseenter@BODY',
         'pointerenter@el',
+        'mouseenter@el',
         'pointerdown@el',
+        'mousedown@el',
         'pointermove@el',
+        'mousemove@el',
         'pointerup@el',
+        'mouseup@el',
         'pointerout@el',
+        'mouseout@el',
         'pointerleave@el',
+        'mouseleave@el',
         'pointerleave@BODY',
+        'mouseleave@BODY',
         'pointerleave@HTML',
+        'mouseleave@HTML',
       ])
     })
 

@@ -1,10 +1,11 @@
 {
   "name": "pointerdriver",
   "version": "1.0.0",
-  "description": "Simulate PointerEvent input on a DOM element",
+  "description": "Synthesizes DOMEvents from human-device interactions",
   "type": "module",
   "exports": "./index.js",
   "imports": {
+    "#*": "./src/*/index.js",
     "#test/utils": "./test/utils/index.js"
   },
   "bin": {
@@ -13,15 +14,12 @@
   "files": ["index.js", "src/", "bin/", "docs/", "!docs/spec/*.zip"],
   "scripts": {
     "start": "node ./bin/pointerdriver.js",
-    "test": "node --test --test-concurrency=1 --test-timeout=5000 \"**/*.test.js\""
+    "test": "node --test --test-concurrency=1 --test-timeout=5000 --import ./test/utils/setup.js \"**/*.test.js\""
   },
   "engines": { "node": ">=24" },
   "keywords": ["pointer", "pencil", "stylus", "touch", "simulate"],
   "author": "Nicholas Kyriakides",
   "license": "MIT",
-  "dependencies": {
-    "serve": "^14.2.5"
-  },
   "devDependencies": {
     "jsdom": "^26.0.0"
   }

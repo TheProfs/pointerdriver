@@ -30,6 +30,16 @@ const eventDefaults = type => ({
   lostpointercapture: { bubbles: true, cancelable: false, composed: true },
 })[type] ?? { bubbles: true, cancelable: true, composed: true }
 
+const mouseCompat = {
+  pointerover: 'mouseover',
+  pointerenter: 'mouseenter',
+  pointerdown: 'mousedown',
+  pointermove: 'mousemove',
+  pointerup: 'mouseup',
+  pointerout: 'mouseout',
+  pointerleave: 'mouseleave',
+}
+
 const clamp = (min, max, n) =>
   Math.min(max, Math.max(min, n))
 
@@ -130,7 +140,8 @@ export class Pointer {
   }
 
   leave(target, point) {
-    if (!this.#target) return
+    if (!this.#target)
+      return
 
     this.#dispatch('pointerout', this.#target, point, { bubbles: true })
 
@@ -145,7 +156,8 @@ export class Pointer {
   }
 
   cancel(target, point) {
-    if (!this.#target) return
+    if (!this.#target)
+      return
 
     this.#dispatch('pointercancel', this.#target, point, {
       bubbles: true,
@@ -169,7 +181,8 @@ export class Pointer {
   }
 
   release(target) {
-    if (!this.#captureTarget) return
+    if (!this.#captureTarget)
+      return
 
     this.#captureTarget = null
 
@@ -181,7 +194,8 @@ export class Pointer {
   touch(target, point) { return null }
 
   #transition(nextTarget, point, i, total) {
-    if (nextTarget === this.#target) return
+    if (nextTarget === this.#target)
+      return
 
     const prev = this.#path
     const next = pathOf(nextTarget)
@@ -260,6 +274,11 @@ export class Pointer {
     const init = { ...defaults, ...base, ...coords, ...props, ...movement, ...extra }
 
     target.dispatchEvent(new Event(type, init))
+
+    const mtype = mouseCompat[type]
+
+    if (this.type === 'mouse' && mtype)
+      target.dispatchEvent(new MouseEvent(mtype, init))
 
     if (point)
       this.#lastPoint = point

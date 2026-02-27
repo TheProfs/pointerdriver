@@ -1,4 +1,4 @@
-import { Motion } from '../../motion/index.js'
+import { Motion } from '#motion'
 
 const normalizePoints = raw => {
   if (!Array.isArray(raw))
@@ -44,7 +44,8 @@ export class StrokeMotion extends Motion {
 
   async perform() {
     const points = this.#points
-    if (!points.length) return
+    if (!points.length)
+      return
 
     const pointer = this.pointer({ primary: true })
 

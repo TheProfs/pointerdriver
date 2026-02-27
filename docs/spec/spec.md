@@ -153,13 +153,31 @@ For captured pointers, `move` keeps targeting the capture target.
 
 ### Mouse compatibility events
 
-Out of scope. iOS Safari sensor data
-(`ios-sensor.json`, 1205 events) confirms mouse
-compat events fire only after a quick tap — the
-browser's own click synthesis at the end of the
-interaction. Continuous gestures (stroke, glide,
-drag, pinch, swipe, twist) never trigger them.
-The browser handles this; we don't replicate it.
+Mouse-type pointers dispatch a `MouseEvent` immediately
+after each `PointerEvent`. This matches real desktop
+browser behavior where a mouse drag fires both event
+types in sequence.
+
+Mapped types:
+
+| PointerEvent     | MouseEvent     |
+|------------------|----------------|
+| `pointerover`    | `mouseover`    |
+| `pointerenter`   | `mouseenter`   |
+| `pointerdown`    | `mousedown`    |
+| `pointermove`    | `mousemove`    |
+| `pointerup`      | `mouseup`      |
+| `pointerout`     | `mouseout`     |
+| `pointerleave`   | `mouseleave`   |
+
+No mouse equivalent for `pointercancel`,
+`gotpointercapture`, or `lostpointercapture`.
+
+Touch and pen pointers do not emit mouse compat events.
+iOS Safari sensor data (`ios-sensor.json`) confirms
+mouse compat events do not fire during touch/pen
+gestures — only after a quick tap as browser-synthesized
+clicks, which is out of scope.
 
 ### Hierarchy
 
@@ -264,7 +282,12 @@ gesturechange(target, gesture)
 gestureend(target, gesture)
 ```
 
-`gesture` is `{ scale, rotation }` (defaults: `1`, `0`).  
+`gesture` is `{ scale, rotation }` (defaults: `1`, `0`).
+
+Gesture methods dispatch `GestureEvent` when available.
+On platforms without `GestureEvent` (e.g. Chrome),
+the dispatch is silently skipped.
+Touch events still fire regardless.
 
 Touch methods call `pointer.touch(target, point)`
 and dispatch TouchEvents that match iOS Safari semantics.  
@@ -379,6 +402,7 @@ pointer.leave(target, pLast)
 ```
 
 No touch events. No capture.
+Mouse compat events fire after each pointer event.
 
 ### PinchMotion
 

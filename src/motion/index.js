@@ -1,4 +1,4 @@
-import { webkit } from '../pointer/index.js'
+import { webkit } from '#pointer'
 
 export class Motion {
   #el
@@ -37,7 +37,8 @@ export class Motion {
   }
 
   delay(ms) {
-    if (!ms) return Promise.resolve()
+    if (!ms)
+      return Promise.resolve()
 
     return new Promise(resolve =>
       setTimeout(resolve, ms)
@@ -46,7 +47,8 @@ export class Motion {
 
   touchstart(pointer, point, gesture = { scale: 1, rotation: 0 }) {
     const target = pointer.target
-    if (!pointer.emitsTouch || !target) return
+    if (!pointer.emitsTouch || !target)
+      return
 
     this.#touches.set(pointer.id, { pointer, target, point })
 
@@ -56,10 +58,12 @@ export class Motion {
   }
 
   touchmove(pointer, point, gesture = { scale: 1, rotation: 0 }) {
-    if (!pointer.emitsTouch) return
+    if (!pointer.emitsTouch)
+      return
 
     const entry = this.#touches.get(pointer.id)
-    if (!entry) return
+    if (!entry)
+      return
 
     entry.point = point
 
@@ -69,10 +73,12 @@ export class Motion {
   }
 
   touchend(pointer, point, gesture = { scale: 1, rotation: 0 }) {
-    if (!pointer.emitsTouch) return
+    if (!pointer.emitsTouch)
+      return
 
     const entry = this.#touches.get(pointer.id)
-    if (!entry) return
+    if (!entry)
+      return
 
     const changed = pointer.touch(entry.target, point)
 
@@ -82,10 +88,12 @@ export class Motion {
   }
 
   touchcancel(pointer, point, gesture = { scale: 1, rotation: 0 }) {
-    if (!pointer.emitsTouch) return
+    if (!pointer.emitsTouch)
+      return
 
     const entry = this.#touches.get(pointer.id)
-    if (!entry) return
+    if (!entry)
+      return
 
     const changed = pointer.touch(entry.target, point)
 
@@ -139,7 +147,7 @@ export class Motion {
   #dispatchGesture(type, target, { scale = 1, rotation = 0 } = {}) {
     const Event = globalThis.GestureEvent
     if (typeof Event !== 'function')
-      throw new Error('GestureEvent is not available in this environment')
+      return
 
     target.dispatchEvent(new Event(type, {
       bubbles: true,

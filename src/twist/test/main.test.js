@@ -1,7 +1,7 @@
 import { test } from 'node:test'
 import { mockDOM, mockListen } from '#test/utils'
-import { IosTouchPointer } from '../../../pointer/index.js'
-import { PinchMotion } from '../index.js'
+import { IosTouchPointer } from '#pointer'
+import { TwistMotion } from '../index.js'
 
 class TestTouchPointer extends IosTouchPointer {
   constructor(opts) {
@@ -11,7 +11,7 @@ class TestTouchPointer extends IosTouchPointer {
 
 const testPlatform = { touch: TestTouchPointer }
 
-test('PinchMotion', async t => {
+test('TwistMotion', async t => {
   t.beforeEach(t => Object.assign(t, { mockDOM, mockListen }).mockDOM())
 
   await t.test('steps non-positive', async t => {
@@ -19,13 +19,13 @@ test('PinchMotion', async t => {
       const stage = document.createElement('div')
 
       t.assert.throws(
-        () => new PinchMotion(stage, 2, { x: 20, y: 20, steps: 0 }),
+        () => new TwistMotion(stage, 45, { x: 20, y: 20, steps: 0 }),
         { name: 'RangeError', message: /steps/i }
       )
     })
   })
 
-  await t.test('2-finger pinch within element', async t => {
+  await t.test('2-finger twist within element', async t => {
     t.beforeEach(t => Object.assign(t, {
       stage: document.body.appendChild(
         Object.assign(document.createElement('div'), { id: 'stage' })
@@ -39,16 +39,16 @@ test('PinchMotion', async t => {
       t.b.id = 'b'
       t.stage.append(t.a, t.b)
 
-      document.elementFromPoint = x => (x < 20 ? t.a : t.b)
+      document.elementFromPoint = x => (x < 20 ? t.b : t.a)
     })
 
     await t.test('dispatches 2 pointerdown events', async t => {
       const dispatched = t.mockListen(['pointerdown'])
 
-      await new PinchMotion(t.stage, 2, {
+      await new TwistMotion(t.stage, 45, {
         x: 20,
         y: 20,
-        distance: 10,
+        radius: 10,
         steps: 3,
         platform: testPlatform,
       }).perform()
@@ -59,10 +59,10 @@ test('PinchMotion', async t => {
     await t.test('pointerdown uses different targets and IDs', async t => {
       const dispatched = t.mockListen(['pointerdown'])
 
-      await new PinchMotion(t.stage, 2, {
+      await new TwistMotion(t.stage, 45, {
         x: 20,
         y: 20,
-        distance: 10,
+        radius: 10,
         steps: 3,
         platform: testPlatform,
       }).perform()
@@ -73,82 +73,75 @@ test('PinchMotion', async t => {
       )
     })
 
-    await t.test('dispatches gotpointercapture for each pointer before its first move', async t => {
-      const dispatched = t.mockListen([
-        'gotpointercapture',
-        'pointermove',
-      ])
+    await t.test('clockwise degrees yields positive rotation', async t => {
+      const dispatched = t.mockListen(['gestureend'])
 
-      await new PinchMotion(t.stage, 2, {
+      await new TwistMotion(t.stage, 45, {
         x: 20,
         y: 20,
-        distance: 10,
-        steps: 3,
+        radius: 10,
+        steps: 2,
         platform: testPlatform,
       }).perform()
 
-      const aCapture = dispatched.findIndex(e =>
-        e.type === 'gotpointercapture' && e.pointerId === 1
-      )
+      const aEnd = dispatched.find(e => e.target === 'a')
 
-      const bCapture = dispatched.findIndex(e =>
-        e.type === 'gotpointercapture' && e.pointerId === 2
-      )
-
-      const aMove = dispatched.findIndex(e =>
-        e.type === 'pointermove' && e.pointerId === 1
-      )
-
-      const bMove = dispatched.findIndex(e =>
-        e.type === 'pointermove' && e.pointerId === 2
-      )
-
-      t.assert.ok(
-        aCapture >= 0 &&
-        aMove >= 0 &&
-        aCapture < aMove &&
-        bCapture >= 0 &&
-        bMove >= 0 &&
-        bCapture < bMove
-      )
+      t.assert.ok(aEnd?.rotation > 0)
     })
 
-    await t.test('touchstart fires once per finger', async t => {
-      const dispatched = t.mockListen(['touchstart'])
+    await t.test('counterclockwise degrees yields negative rotation', async t => {
+      const dispatched = t.mockListen(['gestureend'])
 
-      await new PinchMotion(t.stage, 2, {
+      await new TwistMotion(t.stage, -45, {
         x: 20,
         y: 20,
-        distance: 10,
-        steps: 3,
+        radius: 10,
+        steps: 2,
         platform: testPlatform,
       }).perform()
 
-      t.assert.strictEqual(dispatched.length, 2)
+      const aEnd = dispatched.find(e => e.target === 'a')
+
+      t.assert.ok(aEnd?.rotation < 0)
     })
 
-    await t.test('second touchstart includes both touches', async t => {
-      const dispatched = t.mockListen(['touchstart'])
+    await t.test('positions follow rotation geometry', async t => {
+      const dispatched = t.mockListen(['touchmove'])
 
-      await new PinchMotion(t.stage, 2, {
+      await new TwistMotion(t.stage, 45, {
         x: 20,
         y: 20,
-        distance: 10,
-        steps: 3,
+        radius: 10,
+        steps: 2,
         platform: testPlatform,
       }).perform()
 
-      t.assert.deepStrictEqual(dispatched[1].touches?.map(t => t.id), [1, 2])
+      const angle = (45 * Math.PI) / 180 * (1 / 2)
+
+      const expected = [
+        { x: 20 + Math.cos(angle) * 10, y: 20 + Math.sin(angle) * 10 },
+        { x: 20 + Math.cos(angle + Math.PI) * 10, y: 20 + Math.sin(angle + Math.PI) * 10 },
+      ]
+
+      t.assert.deepStrictEqual(
+        dispatched
+          .slice(0, 2)
+          .map(e => ({ id: e.changedTouches?.[0]?.id, x: e.changedTouches?.[0]?.x, y: e.changedTouches?.[0]?.y })),
+        [
+          { id: 1, x: expected[0].x, y: expected[0].y },
+          { id: 2, x: expected[1].x, y: expected[1].y },
+        ]
+      )
     })
 
     await t.test('gesturestart begins at scale 1 and rotation 0', async t => {
       const dispatched = t.mockListen(['gesturestart'])
 
-      await new PinchMotion(t.stage, 2, {
+      await new TwistMotion(t.stage, 45, {
         x: 20,
         y: 20,
-        distance: 10,
-        steps: 3,
+        radius: 10,
+        steps: 2,
         platform: testPlatform,
       }).perform()
 
@@ -159,16 +152,13 @@ test('PinchMotion', async t => {
     })
 
     await t.test('second gesturestart values match first gesturechange', async t => {
-      const dispatched = t.mockListen([
-        'gesturestart',
-        'gesturechange',
-      ])
+      const dispatched = t.mockListen(['gesturestart', 'gesturechange'])
 
-      await new PinchMotion(t.stage, 2, {
+      await new TwistMotion(t.stage, 45, {
         x: 20,
         y: 20,
-        distance: 10,
-        steps: 3,
+        radius: 10,
+        steps: 2,
         platform: testPlatform,
       }).perform()
 
@@ -184,39 +174,25 @@ test('PinchMotion', async t => {
     await t.test('gestureend is dispatched on both targets', async t => {
       const dispatched = t.mockListen(['gestureend'])
 
-      await new PinchMotion(t.stage, 2, {
+      await new TwistMotion(t.stage, 45, {
         x: 20,
         y: 20,
-        distance: 10,
-        steps: 3,
+        radius: 10,
+        steps: 2,
         platform: testPlatform,
       }).perform()
 
       t.assert.deepStrictEqual(dispatched.map(e => e.target), ['b', 'a'])
     })
 
-    await t.test('first touchend happens while 1 touch remains', async t => {
-      const dispatched = t.mockListen(['touchend'])
-
-      await new PinchMotion(t.stage, 2, {
-        x: 20,
-        y: 20,
-        distance: 10,
-        steps: 3,
-        platform: testPlatform,
-      }).perform()
-
-      t.assert.strictEqual(dispatched[0].touches?.length, 1)
-    })
-
     await t.test('last touchend resets scale and rotation', async t => {
       const dispatched = t.mockListen(['touchend'])
 
-      await new PinchMotion(t.stage, 2, {
+      await new TwistMotion(t.stage, 45, {
         x: 20,
         y: 20,
-        distance: 10,
-        steps: 3,
+        radius: 10,
+        steps: 2,
         platform: testPlatform,
       }).perform()
 
@@ -241,18 +217,18 @@ test('PinchMotion', async t => {
       t.b.id = 'b'
       t.stage.append(t.a, t.b)
 
-      document.elementFromPoint = x => {
-        if (x > 27) return null
-        return x < 20 ? t.a : t.b
+      document.elementFromPoint = (x, y) => {
+        if (y > 20) return null
+        return x < 20 ? t.b : t.a
       }
     })
 
     await t.test('rejects with hit-test missed error', async t => {
       await t.assert.rejects(
-        () => new PinchMotion(t.stage, 2, {
+        () => new TwistMotion(t.stage, 45, {
           x: 20,
           y: 20,
-          distance: 10,
+          radius: 10,
           steps: 2,
           platform: testPlatform,
         }).perform(),
@@ -261,15 +237,12 @@ test('PinchMotion', async t => {
     })
 
     await t.test('dispatches pointercancel and touchcancel for both contacts', async t => {
-      const dispatched = t.mockListen([
-        'pointercancel',
-        'touchcancel',
-      ])
+      const dispatched = t.mockListen(['pointercancel', 'touchcancel'])
 
-      await new PinchMotion(t.stage, 2, {
+      await new TwistMotion(t.stage, 45, {
         x: 20,
         y: 20,
-        distance: 10,
+        radius: 10,
         steps: 2,
         platform: testPlatform,
       }).perform().catch(() => null)
@@ -286,3 +259,4 @@ test('PinchMotion', async t => {
     })
   })
 })
+

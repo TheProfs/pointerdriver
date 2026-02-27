@@ -1,7 +1,7 @@
-import { Motion } from '../../motion/index.js'
+import { Motion } from '#motion'
 
-const lerp = (a, b, t) =>
-  a + (b - a) * t
+const wrap180 = deg =>
+  (((deg + 180) % 360) + 360) % 360 - 180
 
 const computeGesture = (a, b, base) => {
   const dx = b.x - a.x
@@ -9,7 +9,11 @@ const computeGesture = (a, b, base) => {
   const dist = Math.hypot(dx, dy)
 
   const scale = dist / base.dist
-  const rotation = (Math.atan2(dy, dx) - base.angle) * (180 / Math.PI)
+
+  const rawRotation =
+    (Math.atan2(dy, dx) - base.angle) * (180 / Math.PI)
+
+  const rotation = wrap180(rawRotation)
 
   return { scale, rotation }
 }
@@ -17,58 +21,61 @@ const computeGesture = (a, b, base) => {
 const frameDelay = () =>
   new Promise(resolve => requestAnimationFrame(() => resolve()))
 
-export class PinchMotion extends Motion {
-  #scale
+export class TwistMotion extends Motion {
+  #degrees
   #center
-  #distance
+  #radius
   #steps
 
-  constructor(el, scale, opts = {}) {
-    const { x, y, distance = 100, steps = 20, ...rest } = opts
+  constructor(el, degrees = 45, opts = {}) {
+    const { x, y, radius = 80, steps = 20, ...rest } = opts
     super(el, rest)
 
-    if (typeof scale !== 'number' || !Number.isFinite(scale))
-      throw new TypeError('PinchMotion.scale must be a finite number')
-
-    if (scale <= 0)
-      throw new RangeError('PinchMotion.scale must be > 0')
+    if (typeof degrees !== 'number' || !Number.isFinite(degrees))
+      throw new TypeError('TwistMotion.degrees must be a finite number')
 
     if (typeof x !== 'number' || !Number.isFinite(x))
-      throw new TypeError('PinchMotion.x must be a finite number')
+      throw new TypeError('TwistMotion.x must be a finite number')
 
     if (typeof y !== 'number' || !Number.isFinite(y))
-      throw new TypeError('PinchMotion.y must be a finite number')
+      throw new TypeError('TwistMotion.y must be a finite number')
 
-    if (typeof distance !== 'number' || !Number.isFinite(distance))
-      throw new TypeError('PinchMotion.distance must be a finite number')
+    if (typeof radius !== 'number' || !Number.isFinite(radius))
+      throw new TypeError('TwistMotion.radius must be a finite number')
 
-    if (distance <= 0)
-      throw new RangeError('PinchMotion.distance must be > 0')
+    if (radius <= 0)
+      throw new RangeError('TwistMotion.radius must be > 0')
 
     if (!Number.isInteger(steps) || steps <= 0)
-      throw new RangeError('PinchMotion.steps must be positive integer')
+      throw new RangeError('TwistMotion.steps must be positive integer')
 
-    this.#scale = scale
+    this.#degrees = degrees
     this.#center = { x, y }
-    this.#distance = distance
+    this.#radius = radius
     this.#steps = steps
   }
 
   get device() { return 'touch' }
 
   async perform() {
-    const scale = this.#scale
+    const degrees = this.#degrees
     const center = this.#center
-    const distance = this.#distance
+    const radius = this.#radius
     const steps = this.#steps
 
     const pos = Array.from({ length: steps + 1 }, (_, i) => {
       const t = i / steps
-      const d = (distance * lerp(1, scale, t)) / 2
+      const angle = (degrees * Math.PI * t) / 180
 
       return [
-        { x: center.x - d, y: center.y },
-        { x: center.x + d, y: center.y },
+        {
+          x: center.x + Math.cos(angle) * radius,
+          y: center.y + Math.sin(angle) * radius,
+        },
+        {
+          x: center.x + Math.cos(angle + Math.PI) * radius,
+          y: center.y + Math.sin(angle + Math.PI) * radius,
+        },
       ]
     })
 
@@ -157,7 +164,7 @@ export class PinchMotion extends Motion {
       this.touchcancel(b, lastPos[1])
 
       throw new Error(
-        `pinch aborted: ${err?.message ?? String(err)}`,
+        `twist aborted: ${err?.message ?? String(err)}`,
         { cause: err }
       )
     }

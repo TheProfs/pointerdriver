@@ -1,39 +1,88 @@
 #!/usr/bin/env node
-import { spawn } from 'node:child_process'
-import { resolve } from 'node:path'
+
+import { createServer } from 'node:http'
+import { readFile } from 'node:fs/promises'
+import { extname, join, resolve } from 'node:path'
 import { fileURLToPath } from 'node:url'
 
-const here = fileURLToPath(new URL('.', import.meta.url))
-const root = resolve(here, '..')
+const root = resolve(fileURLToPath(import.meta.url), '../..')
+const flag = process.argv[2]
 
-const host = '127.0.0.1'
-const port = 5619
+if (['-h', '--help'].includes(flag)) {
+  console.log(`
+  pointerdriver
 
-const npx = process.platform === 'win32' ? 'npx.cmd' : 'npx'
+  Synthesize pointer, touch, and gesture events on any page.
 
-const args = [
-  '--yes',
-  'serve',
-  '--listen',
-  `tcp://${host}:${port}`,
-  '--cors',
-  root,
-]
+  Usage:
+    npx pointerdriver              start the module server
+    npx pointerdriver -s|--skill   print the agent skill reference
+    npx pointerdriver -h|--help    show this help
+  `)
+} else if (['-s', '--skill'].includes(flag)) {
+  const skill = resolve(root, 'bin/skill.md')
 
-const child = spawn(npx, args, { stdio: 'inherit' })
+  process.stdout.write(await readFile(skill, 'utf8'))
+} else {
 
-const exit = code =>
-  process.exit(typeof code === 'number' ? code : 1)
+const host = process.env.HOST || '127.0.0.1'
+const port = +process.env.PORT || 5619
 
-process.on('SIGINT', () => child.kill('SIGINT'))
-process.on('SIGTERM', () => child.kill('SIGTERM'))
+const types = {
+  '.html': 'text/html',
+  '.js': 'text/javascript',
+  '.css': 'text/css',
+  '.json': 'application/json',
+  '.png': 'image/png',
+  '.jpg': 'image/jpeg',
+  '.svg': 'image/svg+xml',
+  '.ico': 'image/x-icon',
+  '.woff2': 'font/woff2',
+}
 
-child.on('error', err => {
-  console.error(err?.message ?? String(err))
-  exit(1)
+const rewriteImports = source => source
+  .replace(
+    /from\s+['"]#(\w+)['"]/g,
+    (_, name) => `from '/src/${name}/index.js'`
+  )
+
+const server = createServer(async (req, res) => {
+  const url = new URL(req.url, `http://${host}`)
+
+  const pathname = url.pathname === '/pointerdriver.js'
+    ? '/index.js'
+    : url.pathname === '/'
+      ? '/index.html'
+      : url.pathname
+
+  const path = join(root, pathname)
+
+  try {
+    const data = await readFile(path)
+    const mime = types[extname(path)] || 'application/octet-stream'
+
+    const body = mime === 'text/javascript'
+      ? rewriteImports(data.toString())
+      : data
+
+    res.writeHead(200, {
+      'Content-Type': mime,
+      'Access-Control-Allow-Origin': '*',
+    })
+
+    res.end(body)
+  } catch {
+    res.writeHead(404, { 'Content-Type': 'text/plain' })
+    res.end('Not found')
+  }
 })
 
-child.on('exit', (code, signal) => {
-  if (signal) exit(1)
-  exit(code)
-})
+server.listen(port, host, () =>
+  console.log(`http://${host}:${port}/pointerdriver.js`))
+
+const shutdown = () => server.close()
+
+process
+  .on('SIGINT', shutdown)
+  .on('SIGTERM', shutdown)
+}

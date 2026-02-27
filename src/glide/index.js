@@ -1,8 +1,8 @@
-import { Motion } from '../../motion/index.js'
+import { Motion } from '#motion'
 
 const normalizePoints = raw => {
   if (!Array.isArray(raw))
-    throw new TypeError('DragMotion.points must be [x, y, ms][]')
+    throw new TypeError('GlideMotion.points must be [x, y, ms][]')
 
   const points = raw.map((p, i) => {
     if (!Array.isArray(p) || p.length !== 3)
@@ -32,7 +32,7 @@ const normalizePoints = raw => {
   return points
 }
 
-export class DragMotion extends Motion {
+export class GlideMotion extends Motion {
   #points
 
   constructor(el, points, opts) {
@@ -40,35 +40,45 @@ export class DragMotion extends Motion {
     this.#points = normalizePoints(points)
   }
 
-  get device() { return 'mouse' }
+  get device() { return 'touch' }
 
   async perform() {
     const points = this.#points
-    if (!points.length) return
+    if (!points.length)
+      return
 
     const pointer = this.pointer({ primary: true })
 
+    const target = this.hit(points[0])
     let point = points[0]
-    let target = this.hit(point)
 
     pointer.enter(target, point)
     pointer.down(target, point, 0, points.length)
 
     try {
+      this.touchstart(pointer, point)
+      pointer.capture(target)
+
       for (let i = 1; i < points.length; i++) {
         await this.delay(points[i].createdAt - points[i - 1].createdAt)
 
-        target = this.hit(points[i])
+        this.hit(points[i])
         point = points[i]
+
         pointer.move(target, point, i, points.length)
+        this.touchmove(pointer, point)
       }
 
       pointer.up(target, point, points.length - 1, points.length)
+      pointer.release(target)
       pointer.leave(target, point)
+
+      this.touchend(pointer, point)
     } catch (err) {
       pointer.cancel(target, point)
+      this.touchcancel(pointer, point)
       throw new Error(
-        `drag aborted: ${err?.message ?? String(err)}`,
+        `glide aborted: ${err?.message ?? String(err)}`,
         { cause: err }
       )
     }
