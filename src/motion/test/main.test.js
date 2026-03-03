@@ -11,10 +11,9 @@ class BarMotion extends Motion {
 }
 
 test('Motion', async t => {
-  t.beforeEach(t => Object.assign(t, { mockDOM }))
-  t.beforeEach(t => t.mockDOM())
+  t.beforeEach(t => Object.assign(t, { mockDOM }).mockDOM())
 
-  await t.test('constructor', async t => {
+  await t.test('#constructor', async t => {
     await t.test('el not an Element', async t => {
       await t.test('throws TypeError', t => {
         t.assert.throws(

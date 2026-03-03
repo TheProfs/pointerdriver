@@ -19,9 +19,9 @@ test('mockListen', async t => {
       pointerId: 1, pointerType: 'mouse',
     }))
 
-    t.assert.deepStrictEqual(
-      dispatched.map(e => e.type),
-      ['pointerdown', 'pointermove']
-    )
+    t.assert.eventSequence(dispatched, [
+      'pointerdown@el',
+      'pointermove@el',
+    ])
   })
 })

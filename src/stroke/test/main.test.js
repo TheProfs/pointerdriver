@@ -1,5 +1,5 @@
 import { test } from 'node:test'
-import { mockDOM, mockListen } from '#test/utils'
+import { hit, mockDOM, mockListen } from '#test/utils'
 import { StrokeMotion } from '../index.js'
 
 test('StrokeMotion', async t => {
@@ -41,6 +41,26 @@ test('StrokeMotion', async t => {
     })
   })
 
+  await t.test('points with invalid tuples', async t => {
+    await t.test('throws TypeError on non-[x, y, ms]', t => {
+      const el = document.createElement('div')
+
+      t.assert.throws(
+        () => new StrokeMotion(el, [[10, 10]]),
+        { name: 'TypeError', message: /\[x, y, ms\]/i }
+      )
+    })
+
+    await t.test('throws TypeError on non-finite numbers', t => {
+      const el = document.createElement('div')
+
+      t.assert.throws(
+        () => new StrokeMotion(el, [[10, NaN, 0]]),
+        { name: 'TypeError', message: /finite/i }
+      )
+    })
+  })
+
   await t.test('pen stroke within element', async t => {
     t.beforeEach(t => Object.assign(t, {
       stage: document.body.appendChild(
@@ -52,7 +72,7 @@ test('StrokeMotion', async t => {
     t.beforeEach(t => {
       t.a.id = 'a'
       t.stage.append(t.a)
-      document.elementFromPoint = () => t.a
+      hit(t.a)
     })
 
     await t.test('dispatches expected event sequence', async t => {
@@ -124,7 +144,10 @@ test('StrokeMotion', async t => {
         [11, 11, 0],
       ]).perform()
 
-      t.assert.everyPartialEqual(dispatched, { pointerType: 'pen' })
+      t.assert.ok(
+        dispatched.length > 0 &&
+          dispatched.every(e => e.pointerType === 'pen')
+      )
     })
   })
 
@@ -188,4 +211,3 @@ test('StrokeMotion', async t => {
     })
   })
 })
-

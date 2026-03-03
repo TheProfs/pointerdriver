@@ -72,6 +72,7 @@ export class Pointer {
   #target = null
   #captureTarget = null
   #lastPoint = null
+  #lastMovePoint = null
 
   constructor({ id = Pointer.id(), primary } = {}) {
     if (typeof primary !== 'boolean')
@@ -94,6 +95,7 @@ export class Pointer {
 
     this.#target = target
     this.#path = next
+    this.#lastMovePoint = point
 
     this.#dispatch('pointerover', target, point, { bubbles: true })
 
@@ -105,6 +107,7 @@ export class Pointer {
     this.#pressed = true
     this.#target = target
     this.#lastPoint = point
+    this.#lastMovePoint = point
 
     if (this.implicitCapture)
       this.#captureTarget = target
@@ -139,35 +142,50 @@ export class Pointer {
     }, { i, total })
   }
 
-  leave(target, point) {
+  leave(target, point, i, total) {
     if (!this.#target)
       return
 
-    this.#dispatch('pointerout', this.#target, point, { bubbles: true })
+    this.release(this.#captureTarget, i, total)
+
+    this.#dispatch(
+      'pointerout',
+      this.#target,
+      point,
+      { bubbles: true },
+      { i, total }
+    )
 
     for (const el of [...this.#path].reverse())
-      this.#dispatch('pointerleave', el, point, { bubbles: false })
+      this.#dispatch(
+        'pointerleave',
+        el,
+        point,
+        { bubbles: false },
+        { i, total }
+      )
 
     this.#pressed = false
     this.#path = []
     this.#target = null
     this.#captureTarget = null
     this.#lastPoint = null
+    this.#lastMovePoint = null
   }
 
-  cancel(target, point) {
+  cancel(target, point, i, total) {
     if (!this.#target)
       return
 
     this.#dispatch('pointercancel', this.#target, point, {
       bubbles: true,
       buttons: 0,
-    })
+    }, { i, total })
 
-    this.leave(target, point)
+    this.leave(target, point, i, total)
   }
 
-  capture(target) {
+  capture(target, i, total) {
     this.#captureTarget = target
 
     if (target !== this.#target) {
@@ -177,10 +195,10 @@ export class Pointer {
 
     this.#dispatch('gotpointercapture', target, this.#lastPoint ?? null, {
       bubbles: true,
-    })
+    }, { i, total })
   }
 
-  release(target) {
+  release(target, i, total) {
     if (!this.#captureTarget)
       return
 
@@ -188,10 +206,41 @@ export class Pointer {
 
     this.#dispatch('lostpointercapture', target, this.#lastPoint ?? null, {
       bubbles: true,
-    })
+    }, { i, total })
   }
 
-  touch(target, point) { return null }
+  touch(target, point) {
+    if (!this.emitsTouch)
+      return null
+
+    const Touch = globalThis.Touch
+    if (typeof Touch !== 'function')
+      throw new Error('Touch is not available in this environment')
+
+    const { width, height } = this.props(0, 1)
+
+    const win = target.ownerDocument?.defaultView ?? globalThis.window
+    const scrollX = typeof win?.scrollX === 'number' ? win.scrollX : 0
+    const scrollY = typeof win?.scrollY === 'number' ? win.scrollY : 0
+
+    const clientX = point.x
+    const clientY = point.y
+
+    return new Touch({
+      identifier: this.id,
+      target,
+      clientX,
+      clientY,
+      pageX: clientX + scrollX,
+      pageY: clientY + scrollY,
+      screenX: clientX,
+      screenY: clientY,
+      radiusX: width / 2,
+      radiusY: height / 2,
+      rotationAngle: 0,
+      force: 0,
+    })
+  }
 
   #transition(nextTarget, point, i, total) {
     if (nextTarget === this.#target)
@@ -257,8 +306,8 @@ export class Pointer {
       ? {
         clientX: point.x,
         clientY: point.y,
-        pageX: point.x,
-        pageY: point.y,
+        pageX: point.x + (target.ownerDocument?.defaultView?.scrollX ?? 0),
+        pageY: point.y + (target.ownerDocument?.defaultView?.scrollY ?? 0),
         screenX: point.x,
         screenY: point.y,
       }
@@ -285,13 +334,13 @@ export class Pointer {
   }
 
   #movement(point) {
-    if (!point || !this.#lastPoint)
+    if (!point || !this.#lastMovePoint)
       return { movementX: 0, movementY: 0 }
 
-    const movementX = point.x - this.#lastPoint.x
-    const movementY = point.y - this.#lastPoint.y
+    const movementX = point.x - this.#lastMovePoint.x
+    const movementY = point.y - this.#lastMovePoint.y
 
-    this.#lastPoint = point
+    this.#lastMovePoint = point
 
     return { movementX, movementY }
   }
@@ -313,29 +362,6 @@ export class PenPointer extends Pointer {
       altitudeAngle: 1,
       azimuthAngle: 0.6,
     }
-  }
-
-  touch(target, point) {
-    const Touch = globalThis.Touch
-    if (typeof Touch !== 'function')
-      throw new Error('Touch is not available in this environment')
-
-    const { width, height } = this.props(0, 1)
-
-    return new Touch({
-      identifier: this.id,
-      target,
-      clientX: point.x,
-      clientY: point.y,
-      pageX: point.x,
-      pageY: point.y,
-      screenX: point.x,
-      screenY: point.y,
-      radiusX: width / 2,
-      radiusY: height / 2,
-      rotationAngle: 0,
-      force: 0,
-    })
   }
 }
 
@@ -399,29 +425,6 @@ export class TouchPointer extends Pointer {
       altitudeAngle: Math.PI / 2,
       azimuthAngle: 0,
     }
-  }
-
-  touch(target, point) {
-    const Touch = globalThis.Touch
-    if (typeof Touch !== 'function')
-      throw new Error('Touch is not available in this environment')
-
-    const { width, height } = this.props(0, 1)
-
-    return new Touch({
-      identifier: this.id,
-      target,
-      clientX: point.x,
-      clientY: point.y,
-      pageX: point.x,
-      pageY: point.y,
-      screenX: point.x,
-      screenY: point.y,
-      radiusX: width / 2,
-      radiusY: height / 2,
-      rotationAngle: 0,
-      force: 0,
-    })
   }
 }
 

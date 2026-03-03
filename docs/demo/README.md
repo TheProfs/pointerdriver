@@ -9,6 +9,9 @@
 npm start
 ```
 
+Then open `http://127.0.0.1:3000`.  
+Use `PORT=3001 npm start` if the default port is busy.  
+
 Meant as a testbed for validating `pointerdriver`.
 
 > [!CAUTION]

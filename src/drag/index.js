@@ -1,43 +1,11 @@
 import { Motion } from '#motion'
 
-const normalizePoints = raw => {
-  if (!Array.isArray(raw))
-    throw new TypeError('DragMotion.points must be [x, y, ms][]')
-
-  const points = raw.map((p, i) => {
-    if (!Array.isArray(p) || p.length !== 3)
-      throw new TypeError(`points[${i}] must be [x, y, ms]`)
-
-    const [x, y, createdAt] = p
-
-    if (
-      ![x, y, createdAt]
-        .every(n => typeof n === 'number' && Number.isFinite(n))
-    )
-      throw new TypeError(`points[${i}] must contain finite numbers`)
-
-    if (createdAt < 0)
-      throw new RangeError(`points[${i}][2] must be >= 0`)
-
-    return { x, y, createdAt }
-  })
-
-  for (let i = 1; i < points.length; i++) {
-    if (points[i].createdAt < points[i - 1].createdAt)
-      throw new RangeError(
-        `points[${i}][2] must be >= points[${i - 1}][2]`
-      )
-  }
-
-  return points
-}
-
 export class DragMotion extends Motion {
   #points
 
   constructor(el, points, opts) {
     super(el, opts)
-    this.#points = normalizePoints(points)
+    this.#points = Motion.normalizePoints(this.constructor.name, points)
   }
 
   get device() { return 'mouse' }
@@ -57,7 +25,7 @@ export class DragMotion extends Motion {
 
     try {
       for (let i = 1; i < points.length; i++) {
-        await this.delay(points[i].createdAt - points[i - 1].createdAt)
+        await this.delay(points[i].ms - points[i - 1].ms)
 
         target = this.hit(points[i])
         point = points[i]
@@ -65,7 +33,7 @@ export class DragMotion extends Motion {
       }
 
       pointer.up(target, point, points.length - 1, points.length)
-      pointer.leave(target, point)
+      pointer.leave(target, point, points.length - 1, points.length)
     } catch (err) {
       pointer.cancel(target, point)
       throw new Error(

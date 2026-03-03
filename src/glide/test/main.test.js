@@ -41,6 +41,26 @@ test('GlideMotion', async t => {
     })
   })
 
+  await t.test('points with invalid tuples', async t => {
+    await t.test('throws TypeError on non-[x, y, ms]', t => {
+      const el = document.createElement('div')
+
+      t.assert.throws(
+        () => new GlideMotion(el, [[10, 10]]),
+        { name: 'TypeError', message: /\[x, y, ms\]/i }
+      )
+    })
+
+    await t.test('throws TypeError on non-finite numbers', t => {
+      const el = document.createElement('div')
+
+      t.assert.throws(
+        () => new GlideMotion(el, [[10, NaN, 0]]),
+        { name: 'TypeError', message: /finite/i }
+      )
+    })
+  })
+
   await t.test('1-finger drag within element', async t => {
     t.beforeEach(t => Object.assign(t, {
       stage: document.body.appendChild(
@@ -63,8 +83,8 @@ test('GlideMotion', async t => {
         'pointerover',
         'pointerenter',
         'pointerdown',
-        'touchstart',
         'gotpointercapture',
+        'touchstart',
         'pointermove',
         'touchmove',
         'pointerup',
@@ -86,8 +106,8 @@ test('GlideMotion', async t => {
         'pointerenter@stage',
         'pointerenter@a',
         'pointerdown@a',
-        'touchstart@a',
         'gotpointercapture@a',
+        'touchstart@a',
         'pointermove@a',
         'touchmove@a',
         'pointerup@a',
@@ -130,7 +150,10 @@ test('GlideMotion', async t => {
         [30, 10, 0],
       ]).perform()
 
-      t.assert.everyPartialEqual(dispatched, { pointerType: 'touch' })
+      t.assert.ok(
+        dispatched.length > 0 &&
+          dispatched.every(e => e.pointerType === 'touch')
+      )
     })
 
     await t.test('keeps TouchEvent targets stable', async t => {
@@ -178,9 +201,10 @@ test('GlideMotion', async t => {
         'pointerover',
         'pointerenter',
         'pointerdown',
-        'touchstart',
         'gotpointercapture',
+        'touchstart',
         'pointercancel',
+        'lostpointercapture',
         'pointerout',
         'pointerleave',
         'touchcancel',
@@ -198,9 +222,10 @@ test('GlideMotion', async t => {
         'pointerenter@stage',
         'pointerenter@a',
         'pointerdown@a',
-        'touchstart@a',
         'gotpointercapture@a',
+        'touchstart@a',
         'pointercancel@a',
+        'lostpointercapture@a',
         'pointerout@a',
         'pointerleave@a',
         'pointerleave@stage',
@@ -211,4 +236,3 @@ test('GlideMotion', async t => {
     })
   })
 })
-

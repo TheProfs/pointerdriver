@@ -9,12 +9,6 @@ assert.register('eventSequence', function(actual, expected, message) {
   )
 })
 
-assert.register('everyPartialEqual', function(actual, expected, message) {
-  this.assert.ok(actual.length > 0, message ?? 'expected non-empty array')
-  for (const item of actual)
-    this.assert.partialDeepStrictEqual(item, expected, message)
-})
-
 const makeEvent = Base => class extends Base {
   constructor(type, init = {}) {
     super(type, init)
@@ -99,7 +93,7 @@ export function mockListen(types) {
       scale: e.scale ?? null,
       rotation: e.rotation ?? null,
       touches: e.touches
-        ? [...e.touches].map(t => ({
+        ? Array.from(e.touches).map(t => ({
           id: t.identifier ?? null,
           target: t.target?.id || t.target?.tagName || null,
           x: t.clientX ?? null,
@@ -107,13 +101,13 @@ export function mockListen(types) {
         }))
         : null,
       targetTouches: e.targetTouches
-        ? [...e.targetTouches].map(t => ({
+        ? Array.from(e.targetTouches).map(t => ({
           id: t.identifier ?? null,
           target: t.target?.id || t.target?.tagName || null,
         }))
         : null,
       changedTouches: e.changedTouches
-        ? [...e.changedTouches].map(t => ({
+        ? Array.from(e.changedTouches).map(t => ({
           id: t.identifier ?? null,
           target: t.target?.id || t.target?.tagName || null,
           x: t.clientX ?? null,

@@ -34,7 +34,7 @@ Motions are the public API.
    ```js
    const {
      DragMotion, GlideMotion, StrokeMotion,
-     PinchMotion, TwistMotion,
+     PinchMotion, TwistMotion, SwipeMotion,
    } = await import('http://127.0.0.1:5619/pointerdriver.js')
    ```
 
@@ -60,6 +60,7 @@ Available motions exported from `pointerdriver.js`:
 | `StrokeMotion` | pen | Pointer + Touch |
 | `PinchMotion` | 2-finger | Pointer + Touch + Gesture? |
 | `TwistMotion` | 2-finger | Pointer + Touch + Gesture? |
+| `SwipeMotion` | 2-finger | Pointer + Touch + Gesture? |
 
 ### `DragMotion`, `GlideMotion`, `StrokeMotion` points
 
@@ -117,6 +118,27 @@ Constraints:
 - `radius` must be finite and `> 0`.
 - `steps` must be a positive integer.
 
+### `SwipeMotion`
+
+Constructor signature:
+
+```js
+new SwipeMotion(el, distance, {
+  x, y,
+  angle = 0,
+  separation = 40,
+  steps = 20,
+  ...opts
+}).perform()
+```
+
+Constraints:
+- `distance` must be finite and `> 0`.
+- `x` and `y` are required and must be finite.
+- `angle` must be finite. `0` = right, `90` = down.
+- `separation` must be finite and `> 0`.
+- `steps` must be a positive integer.
+
 ## Coordinates, hit-testing, and common failures
 
 All hit-testing is based on `document.elementFromPoint(x, y)`.
@@ -157,8 +179,11 @@ Use cases:
 - Fast, deterministic: keep all `ms` at `0`.
 - Realistic frame pacing: use `0, 16, 32, ...`.
 
-`PinchMotion` and `TwistMotion` advance using `requestAnimationFrame`.
+`PinchMotion`, `TwistMotion`, and `SwipeMotion` advance using `requestAnimationFrame`.
 `steps` controls the number of frames and the number of move events per pointer.
+
+During multi-touch motions, dispatched `TouchEvent`s include `scale` and `rotation`.
+The final `touchend` resets them to `scale=1` and `rotation=0`.
 
 ## Environment requirements
 
@@ -221,7 +246,8 @@ Notes:
 ## CLI server knobs
 
 The module server is `bin/pointerdriver.js`.
-It serves `pointerdriver.js` plus internal `src/` modules and sets CORS headers.
+It serves `pointerdriver.js` plus internal `/src/*/index.js` modules.
+It only responds to `GET/HEAD` for those paths, and sets CORS headers.
 
 Configuration via environment variables:
 

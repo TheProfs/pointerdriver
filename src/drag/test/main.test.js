@@ -61,7 +61,7 @@ test('DragMotion', async t => {
     })
   })
 
-  await t.test('points with monotonically-increasing timestamps', async t => {
+  await t.test('points with non-decreasing timestamps', async t => {
     await t.test('computes movementX/Y deltas on pointermove', async t => {
       const el = hit(document.body.appendChild(
         Object.assign(document.createElement('div'), { id: 'el' })
@@ -146,7 +146,10 @@ test('DragMotion', async t => {
         [13, 14, 0],
       ]).perform()
 
-      t.assert.everyPartialEqual(dispatched, { pointerType: 'mouse' })
+      t.assert.ok(
+        dispatched.length > 0 &&
+          dispatched.every(e => e.pointerType === 'mouse')
+      )
     })
   })
 

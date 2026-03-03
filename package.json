@@ -11,9 +11,16 @@
   "bin": {
     "pointerdriver": "bin/pointerdriver.js"
   },
-  "files": ["index.js", "src/", "bin/", "docs/", "!docs/spec/*.zip"],
+  "files": [
+    "index.js",
+    "src/",
+    "bin/",
+    "docs/",
+    "!docs/analysis.md",
+    "!docs/spec/*.zip"
+  ],
   "scripts": {
-    "start": "node ./bin/pointerdriver.js",
+    "start": "node --title=pointerdriver ./bin/pointerdriver.js",
     "test": "node --test --test-concurrency=1 --test-timeout=5000 --import ./test/utils/setup.js \"**/*.test.js\""
   },
   "engines": { "node": ">=24" },

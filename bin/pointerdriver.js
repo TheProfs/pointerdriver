@@ -2,87 +2,169 @@
 
 import { createServer } from 'node:http'
 import { readFile } from 'node:fs/promises'
-import { extname, join, resolve } from 'node:path'
+import { resolve } from 'node:path'
 import { fileURLToPath } from 'node:url'
 
-const root = resolve(fileURLToPath(import.meta.url), '../..')
-const flag = process.argv[2]
+const root = fileURLToPath(new URL('..', import.meta.url))
 
-if (['-h', '--help'].includes(flag)) {
-  console.log(`
-  pointerdriver
-
-  Synthesize pointer, touch, and gesture events on any page.
-
-  Usage:
-    npx pointerdriver              start the module server
-    npx pointerdriver -s|--skill   print the agent skill reference
-    npx pointerdriver -h|--help    show this help
-  `)
-} else if (['-s', '--skill'].includes(flag)) {
-  const skill = resolve(root, 'bin/skill.md')
-
-  process.stdout.write(await readFile(skill, 'utf8'))
-} else {
-
-const host = process.env.HOST || '127.0.0.1'
-const port = +process.env.PORT || 5619
-
-const types = {
-  '.html': 'text/html',
-  '.js': 'text/javascript',
-  '.css': 'text/css',
-  '.json': 'application/json',
-  '.png': 'image/png',
-  '.jpg': 'image/jpeg',
-  '.svg': 'image/svg+xml',
-  '.ico': 'image/x-icon',
-  '.woff2': 'font/woff2',
+const aliases = {
+  '-p': '--port',
+  '-H': '--host',
+  '-h': '--help',
+  '-s': '--skill',
 }
 
-const rewriteImports = source => source
-  .replace(
-    /from\s+['"]#(\w+)['"]/g,
-    (_, name) => `from '/src/${name}/index.js'`
-  )
+const expand = a => {
+  const [key, ...rest] = a.split('=')
+  return aliases[key]
+    ? [aliases[key], ...rest].join('=')
+    : a
+}
 
-const server = createServer(async (req, res) => {
-  const url = new URL(req.url, `http://${host}`)
+const args = Object.fromEntries(
+  process.argv.slice(2)
+    .map(expand)
+    .filter(a => a.startsWith('--'))
+    .map(a => a.slice(2).split('='))
+)
 
-  const pathname = url.pathname === '/pointerdriver.js'
-    ? '/index.js'
-    : url.pathname === '/'
-      ? '/index.html'
-      : url.pathname
+if ('help' in args) {
+  console.log([
+    '',
+    'pointerdriver',
+    '',
+    'Synthesize pointer, touch, and gesture events on any page.',
+    '',
+    'Usage:',
+    '  pointerdriver                   start the module server',
+    '  pointerdriver --port=<port>     set port (default: 5619)',
+    '  pointerdriver --host=<host>     set host (default: 127.0.0.1)',
+    '  pointerdriver --skill           print the agent skill reference',
+    '  pointerdriver --help            show this help',
+    '',
+    'Aliases:',
+    '  -p=5619, -H=127.0.0.1, -s, -h',
+    '',
+    'Run without install:',
+    '  npx github:TheProfs/pointerdriver',
+    '',
+  ].join('\n'))
+  process.exitCode = 0
+} else if ('skill' in args) {
+  const skill = resolve(root, 'bin/skill.md')
+  process.stdout.write(await readFile(skill, 'utf8'))
+} else {
+  const host = args.host || process.env.HOST || '127.0.0.1'
+  const port = (() => {
+    const raw = args.port ?? process.env.PORT
+    if (raw == null)
+      return 5619
 
-  const path = join(root, pathname)
+    const parsed = Number(raw)
+    if (!Number.isInteger(parsed))
+      throw new TypeError(`Expected port integer, got ${raw}`)
+    if (parsed < 1 || parsed > 65535)
+      throw new RangeError(`port out of range: ${parsed}`)
 
-  try {
-    const data = await readFile(path)
-    const mime = types[extname(path)] || 'application/octet-stream'
+    return parsed
+  })()
 
-    const body = mime === 'text/javascript'
-      ? rewriteImports(data.toString())
-      : data
-
-    res.writeHead(200, {
-      'Content-Type': mime,
-      'Access-Control-Allow-Origin': '*',
-    })
-
-    res.end(body)
-  } catch {
-    res.writeHead(404, { 'Content-Type': 'text/plain' })
-    res.end('Not found')
+  const cors = {
+    'Access-Control-Allow-Origin': '*',
+    'Access-Control-Allow-Methods': 'GET, HEAD, OPTIONS',
+    'Access-Control-Allow-Headers': 'Origin',
   }
-})
 
-server.listen(port, host, () =>
-  console.log(`http://${host}:${port}/pointerdriver.js`))
+  const rewriteImports = source => source
+    .replace(
+      /from\s+['"]#([\w-]+)['"]/g,
+      (_, name) => `from '/src/${name}/index.js'`
+    )
+    .replace(
+      /import\s+['"]#([\w-]+)['"]/g,
+      (_, name) => `import '/src/${name}/index.js'`
+    )
 
-const shutdown = () => server.close()
+  const js = async path =>
+    rewriteImports(await readFile(path, 'utf8'))
 
-process
-  .on('SIGINT', shutdown)
-  .on('SIGTERM', shutdown)
+  const send = (req, res, code, headers, body) => {
+    res.writeHead(code, headers)
+    if (body == null || req.method === 'HEAD')
+      return res.end()
+    return res.end(body)
+  }
+
+  const server = createServer(async (req, res) => {
+    try {
+      const method = req.method || 'GET'
+      if (method === 'OPTIONS')
+        return send(req, res, 204, {
+          ...cors,
+          'Access-Control-Allow-Headers':
+            req.headers['access-control-request-headers'] || 'Origin',
+        })
+      if (!['GET', 'HEAD'].includes(method))
+        return send(req, res, 405, {
+          ...cors,
+          Allow: 'GET, HEAD, OPTIONS',
+          'Content-Type': 'text/plain; charset=utf-8',
+        }, 'Method not allowed')
+
+      const url = new URL(req.url || '/', 'http://local')
+      const pathname = url.pathname
+
+      const request =
+        pathname === '/pointerdriver.js'
+          ? { file: 'index.js' }
+          : pathname.match(/^\/src\/[\w-]+\/index\.js$/)
+            ? { file: pathname.slice(1) }
+            : null
+
+      if (!request)
+        return send(req, res, 404, {
+          ...cors,
+          'Content-Type': 'text/plain; charset=utf-8',
+        }, 'Not found')
+
+      const path = resolve(root, request.file)
+      const body = await js(path)
+
+      return send(req, res, 200, {
+        ...cors,
+        'Content-Type': 'text/javascript; charset=utf-8',
+        'Cache-Control': 'no-store',
+        'X-Content-Type-Options': 'nosniff',
+      }, body)
+    } catch (err) {
+      const message = err instanceof Error ? err.message : String(err)
+      console.error(message)
+
+      const code = err && typeof err === 'object' && 'code' in err
+        ? err.code
+        : null
+
+      if (code === 'ENOENT')
+        return send(req, res, 404, {
+          ...cors,
+          'Content-Type': 'text/plain; charset=utf-8',
+        }, 'Not found')
+
+      return send(req, res, 500, {
+        ...cors,
+        'Content-Type': 'text/plain; charset=utf-8',
+      }, 'Internal server error')
+    }
+  })
+
+  const logHost = host.includes(':') ? `[${host}]` : host
+
+  server.listen(port, host, () =>
+    console.log(`http://${logHost}:${port}/pointerdriver.js`))
+
+  const shutdown = () => server.close()
+
+  process
+    .on('SIGINT', shutdown)
+    .on('SIGTERM', shutdown)
 }

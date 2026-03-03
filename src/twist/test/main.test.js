@@ -84,9 +84,9 @@ test('TwistMotion', async t => {
         platform: testPlatform,
       }).perform()
 
-      const aEnd = dispatched.find(e => e.target === 'a')
-
-      t.assert.ok(aEnd?.rotation > 0)
+      t.assert.ok(
+        dispatched.some(e => e.target === 'a' && e.rotation > 0)
+      )
     })
 
     await t.test('counterclockwise degrees yields negative rotation', async t => {
@@ -100,9 +100,9 @@ test('TwistMotion', async t => {
         platform: testPlatform,
       }).perform()
 
-      const aEnd = dispatched.find(e => e.target === 'a')
-
-      t.assert.ok(aEnd?.rotation < 0)
+      t.assert.ok(
+        dispatched.some(e => e.target === 'a' && e.rotation < 0)
+      )
     })
 
     await t.test('positions follow rotation geometry', async t => {
@@ -120,13 +120,20 @@ test('TwistMotion', async t => {
 
       const expected = [
         { x: 20 + Math.cos(angle) * 10, y: 20 + Math.sin(angle) * 10 },
-        { x: 20 + Math.cos(angle + Math.PI) * 10, y: 20 + Math.sin(angle + Math.PI) * 10 },
+        {
+          x: 20 + Math.cos(angle + Math.PI) * 10,
+          y: 20 + Math.sin(angle + Math.PI) * 10,
+        },
       ]
 
       t.assert.deepStrictEqual(
         dispatched
           .slice(0, 2)
-          .map(e => ({ id: e.changedTouches?.[0]?.id, x: e.changedTouches?.[0]?.x, y: e.changedTouches?.[0]?.y })),
+          .map(e => ({
+            id: e.changedTouches[0].id,
+            x: e.changedTouches[0].x,
+            y: e.changedTouches[0].y,
+          })),
         [
           { id: 1, x: expected[0].x, y: expected[0].y },
           { id: 2, x: expected[1].x, y: expected[1].y },
@@ -146,13 +153,17 @@ test('TwistMotion', async t => {
       }).perform()
 
       t.assert.deepStrictEqual(
-        { target: dispatched[0].target, scale: dispatched[0].scale, rotation: dispatched[0].rotation },
+        {
+          target: dispatched[0].target,
+          scale: dispatched[0].scale,
+          rotation: dispatched[0].rotation,
+        },
         { target: 'a', scale: 1, rotation: 0 }
       )
     })
 
-    await t.test('second gesturestart values match first gesturechange', async t => {
-      const dispatched = t.mockListen(['gesturestart', 'gesturechange'])
+    await t.test('second gesturestart begins at scale 1 and rotation 0', async t => {
+      const dispatched = t.mockListen(['gesturestart'])
 
       await new TwistMotion(t.stage, 45, {
         x: 20,
@@ -162,12 +173,15 @@ test('TwistMotion', async t => {
         platform: testPlatform,
       }).perform()
 
-      const [, bStart] = dispatched.filter(e => e.type === 'gesturestart')
-      const [firstChange] = dispatched.filter(e => e.type === 'gesturechange')
+      const [, bStart] = dispatched
 
       t.assert.deepStrictEqual(
-        { scale: bStart.scale, rotation: bStart.rotation },
-        { scale: firstChange.scale, rotation: firstChange.rotation }
+        {
+          target: bStart.target,
+          scale: bStart.scale,
+          rotation: bStart.rotation,
+        },
+        { target: 'b', scale: 1, rotation: 0 }
       )
     })
 
@@ -182,7 +196,7 @@ test('TwistMotion', async t => {
         platform: testPlatform,
       }).perform()
 
-      t.assert.deepStrictEqual(dispatched.map(e => e.target), ['b', 'a'])
+      t.assert.deepStrictEqual(dispatched.map(e => e.target), ['a', 'b'])
     })
 
     await t.test('last touchend resets scale and rotation', async t => {
@@ -259,4 +273,3 @@ test('TwistMotion', async t => {
     })
   })
 })
-

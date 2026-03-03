@@ -5,9 +5,14 @@ export class Motion {
   #platform
   #touches = new Map()
 
-  constructor(el, { platform = webkit } = {}) {
+  constructor(el, opts = {}) {
     if (!(el instanceof Element))
       throw new TypeError('Motion.el must be an Element')
+
+    if (opts === null || typeof opts !== 'object')
+      throw new TypeError('Motion.opts must be an object')
+
+    const { platform = webkit } = opts
 
     this.#el = el
     this.#platform = platform
@@ -16,6 +21,40 @@ export class Motion {
   get el() { return this.#el }
   get platform() { return this.#platform }
   get device() { throw new Error('Motion.device must be implemented') }
+
+  static normalizePoints(name, raw) {
+    const pointsKey = `${name}.points`
+
+    if (!Array.isArray(raw))
+      throw new TypeError(`${pointsKey} must be [x, y, ms][]`)
+
+    const points = raw.map((p, i) => {
+      if (!Array.isArray(p) || p.length !== 3)
+        throw new TypeError(`${pointsKey}[${i}] must be [x, y, ms]`)
+
+      const [x, y, ms] = p
+
+      if (
+        ![x, y, ms]
+          .every(n => typeof n === 'number' && Number.isFinite(n))
+      )
+        throw new TypeError(`${pointsKey}[${i}] must contain finite numbers`)
+
+      if (ms < 0)
+        throw new RangeError(`${pointsKey}[${i}][2] must be >= 0`)
+
+      return { x, y, ms }
+    })
+
+    for (let i = 1; i < points.length; i++) {
+      if (points[i].ms < points[i - 1].ms)
+        throw new RangeError(
+          `${pointsKey}[${i}][2] must be >= ${pointsKey}[${i - 1}][2]`
+        )
+    }
+
+    return points
+  }
 
   pointer(opts) {
     const Ctor = this.#platform?.[this.device]
@@ -55,6 +94,17 @@ export class Motion {
     const changed = pointer.touch(target, point)
 
     this.#dispatchTouch('touchstart', target, changed, gesture)
+  }
+
+  touchsync(pointer, point) {
+    if (!pointer.emitsTouch)
+      return
+
+    const entry = this.#touches.get(pointer.id)
+    if (!entry)
+      return
+
+    entry.point = point
   }
 
   touchmove(pointer, point, gesture = { scale: 1, rotation: 0 }) {
@@ -149,10 +199,34 @@ export class Motion {
     if (typeof Event !== 'function')
       return
 
+    const points =
+      [...this.#touches.values()]
+        .map(entry => entry.point)
+        .filter(Boolean)
+
+    const coords = points.length
+      ? (() => {
+        const clientX = points.reduce((sum, p) => sum + p.x, 0) / points.length
+        const clientY = points.reduce((sum, p) => sum + p.y, 0) / points.length
+
+        const win = target.ownerDocument?.defaultView ?? globalThis.window
+        const scrollX = typeof win?.scrollX === 'number' ? win.scrollX : 0
+        const scrollY = typeof win?.scrollY === 'number' ? win.scrollY : 0
+
+        return {
+          clientX,
+          clientY,
+          pageX: clientX + scrollX,
+          pageY: clientY + scrollY,
+        }
+      })()
+      : {}
+
     target.dispatchEvent(new Event(type, {
       bubbles: true,
       cancelable: true,
       composed: true,
+      ...coords,
       scale,
       rotation,
     }))

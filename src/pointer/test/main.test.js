@@ -73,6 +73,18 @@ test('Pointer', async t => {
         ])
       })
 
+      await t.test('computes movementX/Y on pointermove', t => {
+        const dispatched = t.mockListen(['pointermove'])
+
+        t.pointer.enter(t.el, { x: 10, y: 10 })
+        t.pointer.move(t.other, { x: 11, y: 12 }, 1, 2)
+
+        t.assert.deepStrictEqual(
+          dispatched.map(e => ({ x: e.movementX, y: e.movementY })),
+          [{ x: 1, y: 2 }]
+        )
+      })
+
       await t.test('updates target', t => {
         t.pointer.enter(t.el, { x: 10, y: 10 })
         t.pointer.move(t.other, { x: 11, y: 12 }, 1, 2)
@@ -107,6 +119,36 @@ test('Pointer', async t => {
         t.pointer.move(t.other, { x: 11, y: 12 }, 1, 2)
 
         t.assert.eventSequence(dispatched, ['pointermove@el'])
+      })
+    })
+  })
+
+  await t.test('#cancel', async t => {
+    t.beforeEach(t => {
+      t.pointer = new MousePointer({ primary: true })
+    })
+
+    await t.test('active capture', async t => {
+      await t.test('dispatches lostpointercapture', t => {
+        const dispatched = t.mockListen([
+          'pointercancel',
+          'lostpointercapture',
+        ])
+
+        const start = { x: 10, y: 10 }
+
+        t.pointer.enter(t.el, start)
+        t.pointer.down(t.el, start, 0, 1)
+        t.pointer.capture(t.el)
+
+        dispatched.length = 0
+
+        t.pointer.cancel(t.el, start, 0, 1)
+
+        t.assert.eventSequence(dispatched, [
+          'pointercancel@el',
+          'lostpointercapture@el',
+        ])
       })
     })
   })
