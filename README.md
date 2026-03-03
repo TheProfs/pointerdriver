@@ -1,69 +1,168 @@
-[![test][test-badge]][test]  
+[![test][test-badge]][test]
 
-# pointerdriver  
+# pointerdriver
 
-> Synthesizes and dispatches events.  
-> Mimics the event stream as if it were executed  
-> by an actual human driving the interaction.  
-
-```sh
-npm i github:TheProfs/pointerdriver
-```
-
-## Usage  
-
-```js
-import { PointerDriver } from 'pointerdriver'
-
-const driver = new PointerDriver('#el')
-
-// Pencil
-await driver.stroke([[30, 50, 0], [60, 80, 16]]) // pen drag
-
-// Mouse
-await driver.drag([[30, 50, 0], [60, 80, 16]])   // mouse drag
-
-// Touch
-await driver.glide([[
-  30, 50, 0], [60, 80, 16]
-]])                         // one-finger drag
-await driver.pinch(2)       // two-finger pinch
-await driver.swipe(80, 0)   // two-finger swipe
-await driver.twist()        // two-finger twist
-```
-
-### Text strokes  
-
-`stroke()` accepts a string,  
-but you must provide an SVG font URL in the constructor.  
-
-```js
-const driver = new PointerDriver('#el', {
-  font: 'http://127.0.0.1:5619/fonts/EMS_Elfin_Smooth.svg',
-})
-
-await driver.stroke('Hello', { fontSize: 48 })
-```
-
-## Server  
-
-Run a local static server:  
+Synthesize pointer, touch, and gesture events on any page.
 
 ```bash
 npx github:TheProfs/pointerdriver
 ```
 
-Open `http://127.0.0.1:5619/`.  
+> [!NOTE]   
+> LLM Agents **must** read the `pointerdriver` skill first.  
+> Ask your LLM to run: `pointerdriver --skill` and study it carefully.
 
-## Test  
+## How it works:
+
+1. Run your project however you want.
+   We're assuming it's running on `localhost:3000`
+2. Run a pointerdriver server with `npx github:TheProfs/pointerdriver`
+3. Go in your browser console and run:
+
+```js
+const {
+  DragMotion, GlideMotion, StrokeMotion,
+  PinchMotion, TwistMotion, SwipeMotion
+} = await import('http://127.0.0.1:5619/pointerdriver.js')
+```
+
+This loads `pointerdriver` and allows executing any of the following motions:
+
+## Motions
+
+Create a motion by running: `new Motion(arguments).perform()`.
+    
+A motion is a *human-maneuver*;  
+Regardless of the arguments you use for it, a motion eventually  
+generates the exact sequence of events that would be generated  
+from a real device.
+
+
+### `DragMotion(el, points)`
+
+Mouse drag across a surface.
+
+| Param    | Description                                |
+|----------|--------------------------------------------|
+| `el`     | target element                             |
+| `points` | `[x, y, ms][]`; `ms` monotonic and `>= 0` |
+
+```js
+await new DragMotion(document.querySelector('#el'), [
+  [30, 50, 0],
+  [60, 80, 16],
+]).perform()
+```
+
+### `GlideMotion(el, points)`
+
+Finger draw on a surface.
+
+| Param    | Description                                |
+|----------|--------------------------------------------|
+| `el`     | target element                             |
+| `points` | `[x, y, ms][]`; `ms` monotonic and `>= 0` |
+
+```js
+await new GlideMotion(document.querySelector('#el'), [
+  [30, 50, 0],
+  [60, 80, 16],
+]).perform()
+```
+
+### `StrokeMotion(el, points)`
+
+Pen stylus stroke on a surface.
+
+| Param    | Description                                |
+|----------|--------------------------------------------|
+| `el`     | target element                             |
+| `points` | `[x, y, ms][]`; `ms` monotonic and `>= 0` |
+
+```js
+await new StrokeMotion(document.querySelector('#el'), [
+  [30, 50, 0],
+  [60, 80, 16],
+]).perform()
+```
+
+### `PinchMotion(el, scale, { x, y, distance, steps })`
+
+Two-finger pinch together or apart.
+
+| Param      | Default | Description              |
+|------------|---------|--------------------------|
+| `el`       |         | target element           |
+| `scale`    |         | target scale factor      |
+| `x`, `y`   |         | gesture center           |
+| `distance` | `100`   | initial finger gap in px |
+| `steps`    | `20`    | interpolation frames     |
+
+```js
+await new PinchMotion(document.querySelector('#el'), 2, {
+  x: 60, y: 80
+}).perform()
+```
+
+### `TwistMotion(el, degrees, { x, y, radius, steps })`
+
+Two-finger rotation around a center point.
+
+| Param     | Default | Description                 |
+|-----------|---------|-----------------------------|
+| `el`      |         | target element              |
+| `degrees` | `45`    | rotation angle              |
+| `x`, `y`  |         | gesture center              |
+| `radius`  | `80`    | finger distance from center |
+| `steps`   | `20`    | interpolation frames        |
+
+```js
+await new TwistMotion(document.querySelector('#el'), 45, {
+  x: 60, y: 80
+}).perform()
+```
+
+### `SwipeMotion(el, distance, { x, y, angle, separation, steps })`
+
+Two-finger parallel drag.
+
+| Param        | Default | Description               |
+|--------------|---------|---------------------------|
+| `el`         |         | target element            |
+| `distance`   |         | travel distance in px     |
+| `x`, `y`     |         | gesture center            |
+| `angle`      | `0`     | direction in degrees      |
+| `separation` | `40`    | gap between fingers in px |
+| `steps`      | `20`    | interpolation frames      |
+
+```js
+await new SwipeMotion(document.querySelector('#el'), 200, {
+  x: 60, y: 80
+}).perform()
+```
+
+## Notes:
+
+- The module server only serves `/pointerdriver.js` and `/src/*/index.js`.
+- It sets permissive CORS headers so you can import it from any page.
+
+## HTTPS pages
+
+If the target page is HTTPS,  
+importing pointerdriver from HTTP is blocked as mixed content.  
+Serve pointerdriver over HTTPS (see `bin/skill.md` for one approach).
+
+
+## Run tests
 
 ```bash
 npm test
 ```
 
-## License  
+## License
 
-MIT  
+[MIT][license]
 
-[test-badge]: https://github.com/TheProfs/pointerdriver/actions/workflows/test.yml/badge.svg  
-[test]: https://github.com/TheProfs/pointerdriver/actions/workflows/test.yml  
+[test-badge]: https://github.com/TheProfs/pointerdriver/actions/workflows/test.yml/badge.svg
+[test]: https://github.com/TheProfs/pointerdriver/actions/workflows/test.yml
+[license]: https://opensource.org/licenses/MIT

@@ -1,1 +1,6 @@
-export { PointerDriver } from './src/driver.js'
+export { DragMotion } from '#drag'
+export { GlideMotion } from '#glide'
+export { StrokeMotion } from '#stroke'
+export { PinchMotion } from '#pinch'
+export { TwistMotion } from '#twist'
+export { SwipeMotion } from '#swipe'

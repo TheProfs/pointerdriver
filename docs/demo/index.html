@@ -1,0 +1,333 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8">
+    <meta name="viewport"
+      content="width=device-width,initial-scale=1,maximum-scale=1">
+    <meta name="description"
+      content="pointerdriver demo page; used to test programmatically-driven user interactions">
+    <title>PaperJS — sketch-pad</title>
+    <style>
+      html, body { height: 100%; margin: 0; overflow: hidden }
+
+      canvas {
+        display: block;
+        width: 100%;
+        height: 100%;
+        touch-action: none;
+      }
+
+      nav {
+        position: fixed;
+        top: 1rem;
+        left: 1rem;
+        z-index: 1;
+
+        button {
+          border: 1px solid AccentColor;
+          background: transparent;
+          color: AccentColor;
+          font: inherit;
+          font-size: 0.8rem;
+          padding: 0.25rem 0.6rem;
+          border-radius: 999px;
+          cursor: pointer;
+
+          &:active { opacity: 0.7 }
+        }
+      }
+
+      footer {
+        position: fixed;
+        bottom: 1rem;
+        left: 0;
+        right: 0;
+        text-align: center;
+        font: 0.75rem/1 system-ui, sans-serif;
+        color: GrayText;
+        pointer-events: none;
+
+        output {
+          display: block;
+          color: CanvasText;
+          font-size: 0.8rem;
+          margin-bottom: 0.6rem;
+        }
+      }
+
+    </style>
+  </head>
+  <body>
+    <nav>
+      <button type="button" data-action="reset">Reset</button>
+    </nav>
+    <canvas id="c" resize></canvas>
+    <footer>
+      <output>zoom: 100%  ·  rotation: 0°  ·  position: 0, 0</output>
+      draw: drag · zoom: pinch · pan: swipe · rotate: twist (Safari)
+    </footer>
+    <script src="./lib/paper-core.js"></script>
+    <script>
+      const canvas = document.querySelector('#c')
+      const status = document.querySelector('output')
+
+      canvas.addEventListener(
+        'contextmenu', e => e.preventDefault()
+      )
+      paper.setup(canvas)
+
+      const { view, project, Tool, Path, Point } = paper
+
+      const midpoint = touches => new Point(
+        (touches[0].clientX + touches[1].clientX) / 2,
+        (touches[0].clientY + touches[1].clientY) / 2
+      )
+
+      const pinchDistance = touches => Math.hypot(
+        touches[1].clientX - touches[0].clientX,
+        touches[1].clientY - touches[0].clientY
+      )
+
+      const pinchAngle = touches =>
+        Math.atan2(
+          touches[1].clientY - touches[0].clientY,
+          touches[1].clientX - touches[0].clientX
+        ) * 180 / Math.PI
+
+      class Camera {
+        #view
+        #project
+        #status
+        #totalRotation = 0
+        #gestureBaseZoom = 1
+        #lastGestureRotation = 0
+        #touch = {
+          active: false, distance: 0,
+          center: null, angle: 0,
+        }
+
+        constructor({ canvas, view, project, status }) {
+          this.#view = view
+          this.#project = project
+          this.#status = status
+
+          const on = (evt, fn) =>
+            canvas.addEventListener(
+              evt, fn, { passive: false }
+            )
+
+          on('touchstart', this.#onTouchStart)
+          on('touchmove', this.#onTouchMove)
+          on('touchend', () => {
+            this.#touch.active = false
+          })
+          on('gesturestart', this.#onGestureStart)
+          on('gesturechange', this.#onGestureChange)
+          on('gestureend', e => e.preventDefault())
+          on('wheel', this.#onWheel)
+        }
+
+        #onTouchStart = e => {
+          if (e.touches.length !== 2)
+            return
+
+          e.preventDefault()
+          this.#touch.active = true
+          this.#touch.distance = pinchDistance(e.touches)
+          this.#touch.center = this.#pinchCenter(e.touches)
+          this.#touch.angle = pinchAngle(e.touches)
+        }
+
+        #onTouchMove = e => {
+          if (!this.#touch.active || e.touches.length !== 2)
+            return
+
+          e.preventDefault()
+
+          const distance = pinchDistance(e.touches)
+          const center = this.#pinchCenter(e.touches)
+          const angle = pinchAngle(e.touches)
+
+          this.#view.zoom = this.#clampZoom(
+            distance / this.#touch.distance
+          )
+          this.#view.center = this.#view.center
+            .add(this.#touch.center.subtract(center))
+          this.#rotateAt(
+            angle - this.#touch.angle,
+            midpoint(e.touches)
+          )
+
+          this.#touch.distance = distance
+          this.#touch.center = center
+          this.#touch.angle = angle
+          this.#updateStatus()
+        }
+
+        #onGestureStart = e => {
+          e.preventDefault()
+          this.#gestureBaseZoom = this.#view.zoom
+          this.#lastGestureRotation = 0
+        }
+
+        #onGestureChange = e => {
+          e.preventDefault()
+
+          const at = new Point(e.clientX, e.clientY)
+          const target = Math.max(
+            0.1,
+            Math.min(10, this.#gestureBaseZoom * e.scale)
+          )
+
+          this.#zoomAt(target / this.#view.zoom, at)
+          this.#rotateAt(
+            e.rotation - this.#lastGestureRotation, at
+          )
+          this.#lastGestureRotation = e.rotation
+          this.#updateStatus()
+        }
+
+        #onWheel = e => {
+          e.preventDefault()
+
+          if (e.ctrlKey)
+            this.#zoomAt(
+              1 - e.deltaY * 0.003,
+              new Point(e.clientX, e.clientY)
+            )
+          else
+            this.#view.center = this.#view.center.add(
+              new Point(e.deltaX, e.deltaY)
+                .divide(this.#view.zoom)
+            )
+
+          this.#updateStatus()
+        }
+
+        #clampZoom(factor) {
+          return Math.max(
+            0.1, Math.min(10, this.#view.zoom * factor)
+          )
+        }
+
+        #zoomAt(factor, at) {
+          const before = this.#view.viewToProject(at)
+
+          this.#view.zoom = this.#clampZoom(factor)
+          this.#view.center = this.#view.center.add(
+            before.subtract(
+              this.#view.viewToProject(at)
+            )
+          )
+        }
+
+        #rotateAt(degrees, at) {
+          this.#project.activeLayer.rotate(
+            degrees, this.#view.viewToProject(at)
+          )
+          this.#totalRotation += degrees
+        }
+
+        #pinchCenter(touches) {
+          return this.#view.viewToProject(
+            midpoint(touches)
+          )
+        }
+
+        #updateStatus() {
+          const { zoom, center, viewSize } = this.#view
+
+          this.#status.textContent = [
+            `zoom: ${Math.round(zoom * 100)}%`,
+            `rotation: ${Math.round(this.#totalRotation % 360)}°`,
+            `position: ${
+              [center.x - viewSize.width / 2,
+               center.y - viewSize.height / 2]
+                .map(Math.round).join(', ')
+            }`,
+          ].join('  ·  ')
+        }
+
+        reset() {
+          this.#project.activeLayer.matrix.reset()
+          this.#totalRotation = 0
+          this.#view.zoom = 1
+          this.#view.center = new Point(
+            this.#view.viewSize.width / 2,
+            this.#view.viewSize.height / 2
+          )
+          this.#updateStatus()
+        }
+      }
+
+      class Pencil {
+        #stroke = null
+
+        constructor() {
+          const tool = new Tool()
+
+          tool.onMouseDown = this.#onDown
+          tool.onMouseDrag = this.#onDrag
+          tool.onMouseUp = this.#onUp
+        }
+
+        #onDown = e => {
+          this.#stroke = new Path({
+            strokeColor: '#222',
+            strokeWidth: 2,
+            strokeCap: 'round',
+            strokeJoin: 'round',
+          })
+          this.#stroke.add(e.point)
+        }
+
+        #onDrag = e => {
+          if (!this.#stroke)
+            return
+          this.#stroke.add(e.point)
+        }
+
+        #onUp = () => {
+          if (!this.#stroke)
+            return
+          this.#stroke.simplify(4)
+          this.#stroke = null
+        }
+      }
+
+      const seed = () => {
+        project.activeLayer.removeChildren()
+
+        new Path.Circle({
+          center: view.center.add([-60, 0]),
+          radius: 40,
+          strokeColor: '#0A84FF',
+          strokeWidth: 2,
+        })
+
+        new Path.Rectangle({
+          point: view.center.add([20, -30]),
+          size: [100, 60],
+          radius: 8,
+          strokeColor: '#FF375F',
+          strokeWidth: 2,
+        })
+      }
+
+      seed()
+
+      const camera = new Camera({
+        canvas, view, project, status,
+      })
+
+      new Pencil()
+
+      document
+        .querySelector('[data-action="reset"]')
+        .addEventListener('click', () => {
+          camera.reset()
+          seed()
+        })
+    </script>
+  </body>
+</html>
