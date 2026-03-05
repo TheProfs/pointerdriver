@@ -2,20 +2,32 @@
 
 [![test][test-badge]][test]
 
-Simulate human maneuvers across devices on gesture-heavy web apps.
+Simulate human maneuvers across devices on gesture-heavy web apps.  
 For usage as an automated testing utility.
 
-Abstracts the idiosyncrasies across many different pointer
-devices; e.g: "Apple Pencil", "touchscreen", "mouse" etc...
-behind an ergonomic and uniform API.
+Abstracts idiosyncrasies across various pointer devices;    
+e.g: "Apple Pencil", "touchscreen", "mouse" etc...  
+using an ergonomic and uniform API.
 
 > [!NOTE]
 > LLM agents/assistants **must** read the [skill][skill-md].
 
 ## Usage
 
-Start the local server, then import in your target app's
-DevTools/Web Inspector/Console:
+Import in your target app's DevTools/Web Inspector/Console:
+
+```js
+const { DragMotion } = await import('https://cdn.jsdelivr.net/gh/TheProfs/pointerdriver@main/pointerdriver.js')
+
+await new DragMotion(document.querySelector('#el'), [
+  [30, 50, 0],
+  [60, 80, 16],
+]).perform()
+```
+
+### Local usage
+
+Run a local server instead of the CDN:
 
 ```bash
 npx github:TheProfs/pointerdriver
@@ -28,6 +40,13 @@ await new DragMotion(document.querySelector('#el'), [
   [30, 50, 0],
   [60, 80, 16],
 ]).perform()
+```
+
+If the target page is HTTPS, the HTTP import is blocked as mixed content.  
+Use a [Cloudflare Tunnel][cftunnel] to wrap it in HTTPS:
+
+```bash
+cloudflared tunnel --url http://127.0.0.1:5619
 ```
 
 ### Programmatic usage
@@ -74,22 +93,56 @@ test('#mousedrag', async t => {
 
 ## Motions
 
-A `Motion` is a unit that represents a particular maneuver.
-For example:
+A `Motion` encodes the manner in which the actual device it represents,  
+translates inputs into events and constucts a near-identical   
+event stream and dispatches it to the passed `element`:
 
-- `"swipe across an element using 1 finger, following this <path>"`
-- `"put 2 fingers down and twist <amount> of degrees and lift up"`
+> "swipe across an element using 1 finger, and draw a square":
 
-The `Motion` is then executed on the passed `element`,
-which starts dispatching appropriate events at appropriate timings.
+```js
+await new DragMotion(document.querySelector('#whiteboard'), [
+  [30, 50, 0],
+  [60, 80, 16],
+  [120, 140, 32],
+]).perform()
+```
 
-Run any motion with `new Motion(args).perform()`.
+> "put 2 fingers down and twist `45 degrees` at pivot: `x: 100, y: 100`,  
+> then lift up":
 
-There are 2 types of Motions; both explained below:
+```js
+await new TwistMotion(document.querySelector('#whiteboard'), 45, {
+  x: 100, y: 100
+}).perform()
+```
+
+### Element targeting
+
+The passed element should be the **container** of the  
+actual element you're targeting:
+
+```html
+<div id="whiteboard">
+  <canvas></canvas>
+</div>
+```
+
+```js
+await new DragMotion(document.querySelector('#whiteboard'), [
+  [30, 50, 0],
+  [60, 80, 16],
+]).perform()
+```
+
+There are 2 types of Motions; 
+
+- Drawing motions
+- Gesture motions
 
 ### Drawing
 
-Motions used for drawing on a surface.
+Single-pointer interactions, commonly used for drawing on a surface.
+
 
 - `DragMotion` — mouse
 - `GlideMotion` — touch
@@ -107,23 +160,9 @@ await new DragMotion(document.querySelector('#el'), [
 ]).perform()
 ```
 
-```js
-await new GlideMotion(document.querySelector('#el'), [
-  [30, 50, 0],
-  [60, 80, 16],
-]).perform()
-```
-
-```js
-await new StrokeMotion(document.querySelector('#el'), [
-  [30, 50, 0],
-  [60, 80, 16],
-]).perform()
-```
-
 ### Gestures
 
-Motions used for interaction (zooming, panning, etc).
+Multi-pointer interactions, commonly used for navigation (zoom, pan etc.)
 
 #### `PinchMotion(el, scale, { x, y, distance, steps })`
 
@@ -173,7 +212,7 @@ await new SwipeMotion(document.querySelector('#el'), 200, {
 
 ## Add a motion
 
-Motions are extensible, allowing support for more
+Motions are extensible, allowing support for more  
 devices and interaction types.
 
 ```
@@ -192,32 +231,8 @@ Motion (base)
 2. Extend `PathMotion` or `GestureMotion`
 3. Export from `motions/index.js`
 
-## Local server
-
-For local development:
-
-```bash
-npx github:TheProfs/pointerdriver
-```
-
-then in your target app Web Console:
-
-```js
-const { DragMotion } = await import('http://127.0.0.1:5619/pointerdriver.js')
-
-// execute motion ...
-```
-
-### Use HTTPS tunnels for https local dev
-
-If the target page is HTTPS, the HTTP import is blocked as mixed content.
-Use a Cloudflare Tunnel to wrap it in HTTPS:
-
-```bash
-cloudflared tunnel --url http://127.0.0.1:5619
-```
-
-Install via [Cloudflare Tunnel downloads][cftunnel].
+> [!NOTE]
+> Co-locate tests in `motions/<name>/test/`.
 
 ## Run tests
 
