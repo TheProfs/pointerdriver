@@ -1,54 +1,48 @@
-import { Motion } from '#motion'
+import { PathMotion } from '#path'
 
-export class StrokeMotion extends Motion {
-  #points
-
-  constructor(el, points, opts) {
-    super(el, opts)
-    this.#points = Motion.normalizePoints(this.constructor.name, points)
-  }
-
+export class StrokeMotion extends PathMotion {
   get device() { return 'pen' }
 
   async perform() {
-    const points = this.#points
-    if (!points.length)
-      return
+    await this.resolve()
 
-    const pointer = this.pointer({ primary: true })
+    for (const points of this.strokes) {
+      if (!points.length)
+        continue
 
-    let point = points[0]
-    let target = this.hit(point)
-    let i = 0
+      const pointer = this.pointer({ primary: true })
+      const n = points.length
 
-    pointer.enter(target, point)
-    pointer.down(target, point, 0, points.length)
+      let point = points[0]
+      let target = this.hit(point)
+      let i = 0
 
-    try {
-      this.touchstart(pointer, point)
+      pointer.enter(target, point)
+        .down(target, point, 0, n)
 
-      for (let next = 1; next < points.length; next++) {
-        await this.delay(points[next].ms - points[next - 1].ms)
+      try {
+        this.touchstart(pointer, point)
 
-        target = this.hit(points[next])
-        point = points[next]
+        for (let next = 1; next < n; next++) {
+          await this.delay(points[next].ms - points[next - 1].ms)
 
-        pointer.move(target, point, next, points.length)
-        this.touchmove(pointer, point)
-        i = next
+          target = this.hit(points[next])
+          point = points[next]
+
+          pointer.move(target, point, next, n)
+          this.touchmove(pointer, point)
+          i = next
+        }
+
+        pointer.up(target, point, n - 1, n)
+          .leave(target, point, n - 1, n)
+
+        this.touchend(pointer, point)
+      } catch (err) {
+        pointer.cancel(target, point, i, n)
+        this.touchcancel(pointer, point)
+        throw new Error(`stroke aborted: ${err?.message ?? String(err)}`, { cause: err })
       }
-
-      pointer.up(target, point, points.length - 1, points.length)
-      pointer.leave(target, point, points.length - 1, points.length)
-
-      this.touchend(pointer, point)
-    } catch (err) {
-      pointer.cancel(target, point, i, points.length)
-      this.touchcancel(pointer, point)
-      throw new Error(
-        `stroke aborted: ${err?.message ?? String(err)}`,
-        { cause: err }
-      )
     }
   }
 }

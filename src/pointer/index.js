@@ -101,6 +101,8 @@ export class Pointer {
 
     for (const el of next)
       this.#dispatch('pointerenter', el, point, { bubbles: false })
+
+    return this
   }
 
   down(target, point, i, total) {
@@ -117,6 +119,8 @@ export class Pointer {
       button: 0,
       buttons: 1,
     }, { i, total })
+
+    return this
   }
 
   move(target, point, i, total) {
@@ -129,6 +133,8 @@ export class Pointer {
       bubbles: true,
       buttons: this.#pressed ? 1 : 0,
     }, { i, total })
+
+    return this
   }
 
   up(target, point, i, total) {
@@ -140,11 +146,13 @@ export class Pointer {
       button: 0,
       buttons: 0,
     }, { i, total })
+
+    return this
   }
 
   leave(target, point, i, total) {
     if (!this.#target)
-      return
+      return this
 
     this.release(this.#captureTarget, i, total)
 
@@ -171,18 +179,20 @@ export class Pointer {
     this.#captureTarget = null
     this.#lastPoint = null
     this.#lastMovePoint = null
+
+    return this
   }
 
   cancel(target, point, i, total) {
     if (!this.#target)
-      return
+      return this
 
     this.#dispatch('pointercancel', this.#target, point, {
       bubbles: true,
       buttons: 0,
     }, { i, total })
 
-    this.leave(target, point, i, total)
+    return this.leave(target, point, i, total)
   }
 
   capture(target, i, total) {
@@ -196,17 +206,21 @@ export class Pointer {
     this.#dispatch('gotpointercapture', target, this.#lastPoint ?? null, {
       bubbles: true,
     }, { i, total })
+
+    return this
   }
 
   release(target, i, total) {
     if (!this.#captureTarget)
-      return
+      return this
 
     this.#captureTarget = null
 
     this.#dispatch('lostpointercapture', target, this.#lastPoint ?? null, {
       bubbles: true,
     }, { i, total })
+
+    return this
   }
 
   touch(target, point) {

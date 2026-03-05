@@ -15,6 +15,7 @@
     "index.js",
     "src/",
     "bin/",
+    "fonts/",
     "docs/",
     "!docs/analysis.md",
     "!docs/spec/*.zip"

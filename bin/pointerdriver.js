@@ -1,11 +1,44 @@
 #!/usr/bin/env node
 
 import { createServer } from 'node:http'
+import { execFile } from 'node:child_process'
 import { readFile } from 'node:fs/promises'
 import { resolve } from 'node:path'
+import { setTimeout as wait } from 'node:timers/promises'
 import { fileURLToPath } from 'node:url'
+import { formatWithOptions, promisify } from 'node:util'
 
 const root = fileURLToPath(new URL('..', import.meta.url))
+
+const release = (port, {
+  timeout = 3000,
+  poll: { interval = 50 } = {}
+} = {}) =>
+  Promise.resolve(port)
+    .then(port => Number.isFinite(port) && port >= 1 && port <= 65535
+      ? port
+      : Promise.reject(new RangeError(`port: ${port}, must be 1 - 65535`)))
+    .then(port => promisify(execFile)('lsof', ['-ti', `tcp:${port}`, '-sTCP:LISTEN']))
+    .then(({ stdout }) => stdout.trim().split('\n').map(Number).filter(Boolean))
+    .then(pids => pids.map(pid => (process.kill(pid, 'SIGTERM'), pid)))
+    .then(function poll(pids, start = Date.now()) {
+      const live = pids.filter(pid => {
+        try { return process.kill(pid, 0), true }
+        catch (err) {
+          if (err.code === 'ESRCH') return false
+          throw err
+        }
+      })
+
+      return !live.length ? pids :
+        Date.now() - start >= timeout
+          ? (live.forEach(pid => process.kill(pid, 'SIGKILL')), pids)
+          : wait(Math.max(10, interval)).then(() => poll(pids, start))
+    })
+    .catch(err => err.code === 1 ? [] : Promise.reject(err))
+
+const log = (...args) =>
+  console.log(formatWithOptions({ colors: true }, ...args))
 
 const aliases = {
   '-p': '--port',
@@ -115,11 +148,15 @@ if ('help' in args) {
       const pathname = url.pathname
 
       const request =
-        pathname === '/pointerdriver.js'
-          ? { file: 'index.js' }
-          : pathname.match(/^\/src\/[\w-]+\/index\.js$/)
-            ? { file: pathname.slice(1) }
-            : null
+        pathname === '/'
+          ? { file: 'bin/skill.md', type: 'text/markdown; charset=utf-8' }
+          : pathname === '/pointerdriver.js'
+            ? { file: 'index.js', type: 'text/javascript; charset=utf-8' }
+            : pathname.match(/^\/src\/[\w-]+\/index\.js$/)
+              ? { file: pathname.slice(1), type: 'text/javascript; charset=utf-8' }
+              : pathname.match(/^\/fonts\/[\w-]+\.svg$/)
+                ? { file: pathname.slice(1), type: 'image/svg+xml' }
+                : null
 
       if (!request)
         return send(req, res, 404, {
@@ -128,11 +165,14 @@ if ('help' in args) {
         }, 'Not found')
 
       const path = resolve(root, request.file)
-      const body = await js(path)
+
+      const body = request.type.startsWith('text/javascript')
+        ? await js(path)
+        : await readFile(path, 'utf8')
 
       return send(req, res, 200, {
         ...cors,
-        'Content-Type': 'text/javascript; charset=utf-8',
+        'Content-Type': request.type,
         'Cache-Control': 'no-store',
         'X-Content-Type-Options': 'nosniff',
       }, body)
@@ -157,10 +197,18 @@ if ('help' in args) {
     }
   })
 
+  log('starting server ...')
+  log('checking port %d ...', port)
+
+  const released = await release(port)
+
+  if (released.length)
+    log('killed: %s to free up port: %d', released.join(', '), port)
+
   const logHost = host.includes(':') ? `[${host}]` : host
 
   server.listen(port, host, () =>
-    console.log(`http://${logHost}:${port}/pointerdriver.js`))
+    log('listening: http://%s:%d/', logHost, port))
 
   const shutdown = () => server.close()
 

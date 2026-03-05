@@ -35,6 +35,7 @@ Motions are the public API.
    const {
      DragMotion, GlideMotion, StrokeMotion,
      PinchMotion, TwistMotion, SwipeMotion,
+     Font, Glass,
    } = await import('http://127.0.0.1:5619/pointerdriver.js')
    ```
 
@@ -48,6 +49,15 @@ Motions are the public API.
      [60, 80, 16],
    ]).perform()
    ```
+
+4. `Glass` is an optional overlay that visualizes dispatched events
+   as colored dots.
+   - Wrap a motion callback in `new Glass(fn)` to enable it.
+   - Always include it by default. It only logs `isTrusted: false`
+     events so it only captures synthetic input.
+   - If the user asks to remove the glass/overlay/visualization,
+     just run motions directly without wrapping them in `Glass`.
+   - To tear down manually, call `glass.remove()` when done.
 
 ## Motions
 
@@ -138,6 +148,35 @@ Constraints:
 - `angle` must be finite. `0` = right, `90` = down.
 - `separation` must be finite and `> 0`.
 - `steps` must be a positive integer.
+
+## Writing text
+
+Pass a string instead of a points array to write text
+as the target device.
+
+```js
+await new StrokeMotion(el, 'hello', {
+  x: 100, y: 200, size: 30
+}).perform()
+```
+
+- `size` — text height in pixels (required).
+- `x`, `y` — starting position in viewport coordinates (required).
+- `font` — URL string to an SVG font, or a `Font` instance.
+  Defaults to bundled Hershey Script.
+
+Loading a custom font:
+
+```js
+const font = await Font.load('https://example.com/font.svg')
+
+await new StrokeMotion(el, 'hello', {
+  font, x: 100, y: 200, size: 30
+}).perform()
+```
+
+Multi-stroke glyphs (letters with pen lifts like "i", "t")
+dispatch separate down-move-up cycles per stroke.
 
 ## Coordinates, hit-testing, and common failures
 
@@ -261,8 +300,10 @@ For HTTPS pages, prefer the Cloudflare Tunnel method instead of raw LAN HTTP.
 ## What pointerdriver does not do
 
 - It does not synthesize browser default actions.
-  There is no `click` event synthesis, scrolling, text input, or focus behavior.
-- It does not bypass CSP, cross-origin iframes, or browser security policies.
+  There is no `click` event synthesis, scrolling, text input,
+  or focus behavior.
+- It does not bypass CSP, cross-origin iframes,
+  or browser security policies.
 
 ## Reference
 

@@ -1,45 +1,39 @@
-import { Motion } from '#motion'
+import { PathMotion } from '#path'
 
-export class DragMotion extends Motion {
-  #points
-
-  constructor(el, points, opts) {
-    super(el, opts)
-    this.#points = Motion.normalizePoints(this.constructor.name, points)
-  }
-
+export class DragMotion extends PathMotion {
   get device() { return 'mouse' }
 
   async perform() {
-    const points = this.#points
-    if (!points.length)
-      return
+    await this.resolve()
 
-    const pointer = this.pointer({ primary: true })
+    for (const points of this.strokes) {
+      if (!points.length)
+        continue
 
-    let point = points[0]
-    let target = this.hit(point)
+      const pointer = this.pointer({ primary: true })
+      const n = points.length
 
-    pointer.enter(target, point)
-    pointer.down(target, point, 0, points.length)
+      let point = points[0]
+      let target = this.hit(point)
 
-    try {
-      for (let i = 1; i < points.length; i++) {
-        await this.delay(points[i].ms - points[i - 1].ms)
+      pointer.enter(target, point)
+        .down(target, point, 0, n)
 
-        target = this.hit(points[i])
-        point = points[i]
-        pointer.move(target, point, i, points.length)
+      try {
+        for (let i = 1; i < n; i++) {
+          await this.delay(points[i].ms - points[i - 1].ms)
+
+          target = this.hit(points[i])
+          point = points[i]
+          pointer.move(target, point, i, n)
+        }
+
+        pointer.up(target, point, n - 1, n)
+          .leave(target, point, n - 1, n)
+      } catch (err) {
+        pointer.cancel(target, point)
+        throw new Error(`drag aborted: ${err?.message ?? String(err)}`, { cause: err })
       }
-
-      pointer.up(target, point, points.length - 1, points.length)
-      pointer.leave(target, point, points.length - 1, points.length)
-    } catch (err) {
-      pointer.cancel(target, point)
-      throw new Error(
-        `drag aborted: ${err?.message ?? String(err)}`,
-        { cause: err }
-      )
     }
   }
 }
