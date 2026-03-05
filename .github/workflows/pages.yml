@@ -1,0 +1,41 @@
+name: publish
+
+on:
+  push:
+    branches: [development]
+
+permissions:
+  pages: write
+  id-token: write
+
+concurrency:
+  group: pages
+  cancel-in-progress: true
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    environment:
+      name: github-pages
+      url: ${{ steps.deploy.outputs.page_url }}
+    steps:
+      - uses: actions/checkout@v6
+      - uses: actions/setup-node@v6
+        with:
+          node-version: 24
+          cache: npm
+      - run: npm ci
+      - run: |
+          cat > .bundle-entry.js << 'EOF'
+          export * from './motions/index.js'
+          export { Font } from '#font'
+          export { Glass } from '#glass'
+          EOF
+          npx esbuild .bundle-entry.js --bundle --format=esm --outfile=dist/pointerdriver.js
+          rm .bundle-entry.js
+      - uses: actions/configure-pages@v5
+      - uses: actions/upload-pages-artifact@v4
+        with:
+          path: dist
+      - uses: actions/deploy-pages@v4
+        id: deploy

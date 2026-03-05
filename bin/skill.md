@@ -27,7 +27,7 @@ const {
   DragMotion, GlideMotion, StrokeMotion,
   PinchMotion, TwistMotion, SwipeMotion,
   Font, Glass,
-} = await import('https://cdn.jsdelivr.net/gh/TheProfs/pointerdriver@main/pointerdriver.js')
+} = await import('https://theprofs.github.io/pointerdriver/pointerdriver.js')
 ```
 
 For local server setup, see the project README.

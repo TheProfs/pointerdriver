@@ -52,6 +52,9 @@ const route = pathname =>
             ? { file: pathname.slice(1), type: 'image/svg+xml' }
             : null
 
+export const pointerdriver = (port = 5619) =>
+  createApp().listen(port)
+
 export const createApp = () => createServer(async (req, res) => {
   try {
     const method = req.method || 'GET'

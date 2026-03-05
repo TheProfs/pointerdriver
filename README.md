@@ -17,7 +17,7 @@ using an ergonomic and uniform API.
 Import in your target app's DevTools/Web Inspector/Console:
 
 ```js
-const { DragMotion } = await import('https://cdn.jsdelivr.net/gh/TheProfs/pointerdriver@main/pointerdriver.js')
+const { DragMotion } = await import('https://theprofs.github.io/pointerdriver/pointerdriver.js')
 
 await new DragMotion(document.querySelector('#el'), [
   [30, 50, 0],
@@ -58,12 +58,20 @@ npm i github:TheProfs/pointerdriver
 ```
 
 ```js
-import { test } from 'node:test'
+import { test, before, after } from 'node:test'
+import { pointerdriver } from 'pointerdriver'
 import puppeteer from 'puppeteer'
 
-const browser = await puppeteer.launch({ headless: false })
-const page = await browser.newPage()
-await page.goto('http://localhost:3000')
+let server, browser, page
+
+before(async () => {
+  server = pointerdriver()
+  browser = await puppeteer.launch({ headless: false })
+  page = await browser.newPage()
+  await page.goto('http://localhost:3000')
+})
+
+after(() => (server.close(), browser.close()))
 
 test('#mousedrag', async t => {
   t.beforeEach(() => page.evaluate(async () => {
@@ -90,6 +98,9 @@ test('#mousedrag', async t => {
   })
 })
 ```
+
+`pointerdriver(port)` starts the module server.
+Defaults to port `5619`.
 
 ## Motions
 
@@ -234,6 +245,14 @@ Motion (base)
 > [!NOTE]
 > Co-locate tests in `motions/<name>/test/`.
 
+## Publish
+
+Pushes to `development` [bundle and deploy][publish] to [GitHub Pages][pages]:
+
+```
+https://theprofs.github.io/pointerdriver/pointerdriver.js
+```
+
 ## Run tests
 
 ```bash
@@ -249,3 +268,5 @@ npm test
 [license]: https://opensource.org/licenses/MIT
 [skill-md]: bin/skill.md
 [cftunnel]: https://developers.cloudflare.com/cloudflare-one/connections/connect-networks/downloads/
+[publish]: https://github.com/TheProfs/pointerdriver/actions/workflows/pages.yml
+[pages]: https://theprofs.github.io/pointerdriver/pointerdriver.js
