@@ -1,51 +1,104 @@
-[![test][test-badge]][test]
-
 # pointerdriver
 
-Synthesize pointer, touch, and gesture events on any page.
+[![test][test-badge]][test]
+
+Simulate human maneuvers across devices on gesture-heavy web apps.
+For usage as an automated testing utility.
+
+Abstracts the idiosyncrasies across many different pointer
+devices; e.g: "Apple Pencil", "touchscreen", "mouse" etc...
+behind an ergonomic and uniform API.
+
+> [!NOTE]
+> LLM agents/assistants **must** read the [skill][skill-md].
+
+## Usage
+
+Start the local server, then import in your target app's
+DevTools/Web Inspector/Console:
 
 ```bash
 npx github:TheProfs/pointerdriver
 ```
 
-> [!NOTE]   
-> LLM Agents **must** read the `pointerdriver` skill first.  
-> Ask your LLM to run: `pointerdriver --skill` and study it carefully.
-
-## How it works:
-
-1. Run your project however you want.
-   We're assuming it's running on `localhost:3000`
-2. Run a pointerdriver server with `npx github:TheProfs/pointerdriver`
-3. Go in your browser console and run:
-
 ```js
-const {
-  DragMotion, GlideMotion, StrokeMotion,
-  PinchMotion, TwistMotion, SwipeMotion
-} = await import('http://127.0.0.1:5619/pointerdriver.js')
+const { DragMotion } = await import('http://127.0.0.1:5619/pointerdriver.js')
+
+await new DragMotion(document.querySelector('#el'), [
+  [30, 50, 0],
+  [60, 80, 16],
+]).perform()
 ```
 
-This loads `pointerdriver` and allows executing any of the following motions:
+### Programmatic usage
+
+You can also `import` and use it to drive automated tests:
+
+```bash
+npm i github:TheProfs/pointerdriver
+```
+
+```js
+import { test } from 'node:test'
+import puppeteer from 'puppeteer'
+
+const browser = await puppeteer.launch({ headless: false })
+const page = await browser.newPage()
+await page.goto('http://localhost:3000')
+
+test('#mousedrag', async t => {
+  t.beforeEach(() => page.evaluate(async () => {
+    const { DragMotion } = await import(
+      'http://127.0.0.1:5619/pointerdriver.js'
+    )
+
+    await new DragMotion(document.querySelector('#el'), [
+      [30, 50, 0],
+      [60, 80, 16],
+    ]).perform()
+  }))
+
+  await t.test('creates a PathItem', async t => {
+    // assertions...
+  })
+
+  await t.test('closely following the cursor path', async t => {
+    // assertions...
+  })
+
+  await t.test('with selected attributes', async t => {
+    // assertions...
+  })
+})
+```
 
 ## Motions
 
-Create a motion by running: `new Motion(arguments).perform()`.
-    
-A motion is a *human-maneuver*;  
-Regardless of the arguments you use for it, a motion eventually  
-generates the exact sequence of events that would be generated  
-from a real device.
+A `Motion` is a unit that represents a particular maneuver.
+For example:
 
+- `"swipe across an element using 1 finger, following this <path>"`
+- `"put 2 fingers down and twist <amount> of degrees and lift up"`
 
-### `DragMotion(el, points)`
+The `Motion` is then executed on the passed `element`,
+which starts dispatching appropriate events at appropriate timings.
 
-Mouse drag across a surface.
+Run any motion with `new Motion(args).perform()`.
 
-| Param    | Description                                |
-|----------|--------------------------------------------|
-| `el`     | target element                             |
-| `points` | `[x, y, ms][]`; `ms` monotonic and `>= 0` |
+There are 2 types of Motions; both explained below:
+
+### Drawing
+
+Motions used for drawing on a surface.
+
+- `DragMotion` — mouse
+- `GlideMotion` — touch
+- `StrokeMotion` — pen
+
+All three take `(el, points)`:
+
+- `points` is `[[x, y, ms], ...]`
+- `ms` is monotonic and `>= 0`
 
 ```js
 await new DragMotion(document.querySelector('#el'), [
@@ -54,30 +107,12 @@ await new DragMotion(document.querySelector('#el'), [
 ]).perform()
 ```
 
-### `GlideMotion(el, points)`
-
-Finger draw on a surface.
-
-| Param    | Description                                |
-|----------|--------------------------------------------|
-| `el`     | target element                             |
-| `points` | `[x, y, ms][]`; `ms` monotonic and `>= 0` |
-
 ```js
 await new GlideMotion(document.querySelector('#el'), [
   [30, 50, 0],
   [60, 80, 16],
 ]).perform()
 ```
-
-### `StrokeMotion(el, points)`
-
-Pen stylus stroke on a surface.
-
-| Param    | Description                                |
-|----------|--------------------------------------------|
-| `el`     | target element                             |
-| `points` | `[x, y, ms][]`; `ms` monotonic and `>= 0` |
 
 ```js
 await new StrokeMotion(document.querySelector('#el'), [
@@ -86,17 +121,18 @@ await new StrokeMotion(document.querySelector('#el'), [
 ]).perform()
 ```
 
-### `PinchMotion(el, scale, { x, y, distance, steps })`
+### Gestures
+
+Motions used for interaction (zooming, panning, etc).
+
+#### `PinchMotion(el, scale, { x, y, distance, steps })`
 
 Two-finger pinch together or apart.
 
-| Param      | Default | Description              |
-|------------|---------|--------------------------|
-| `el`       |         | target element           |
-| `scale`    |         | target scale factor      |
-| `x`, `y`   |         | gesture center           |
-| `distance` | `100`   | initial finger gap in px |
-| `steps`    | `20`    | interpolation frames     |
+- `scale` — target scale factor
+- `x`, `y` — gesture center
+- `distance` — initial finger gap in px (default `100`)
+- `steps` — interpolation frames (default `20`)
 
 ```js
 await new PinchMotion(document.querySelector('#el'), 2, {
@@ -104,17 +140,14 @@ await new PinchMotion(document.querySelector('#el'), 2, {
 }).perform()
 ```
 
-### `TwistMotion(el, degrees, { x, y, radius, steps })`
+#### `TwistMotion(el, degrees, { x, y, radius, steps })`
 
 Two-finger rotation around a center point.
 
-| Param     | Default | Description                 |
-|-----------|---------|-----------------------------|
-| `el`      |         | target element              |
-| `degrees` | `45`    | rotation angle              |
-| `x`, `y`  |         | gesture center              |
-| `radius`  | `80`    | finger distance from center |
-| `steps`   | `20`    | interpolation frames        |
+- `degrees` — rotation angle (default `45`)
+- `x`, `y` — gesture center
+- `radius` — finger distance from center (default `80`)
+- `steps` — interpolation frames (default `20`)
 
 ```js
 await new TwistMotion(document.querySelector('#el'), 45, {
@@ -122,18 +155,15 @@ await new TwistMotion(document.querySelector('#el'), 45, {
 }).perform()
 ```
 
-### `SwipeMotion(el, distance, { x, y, angle, separation, steps })`
+#### `SwipeMotion(el, distance, { x, y, angle, separation, steps })`
 
 Two-finger parallel drag.
 
-| Param        | Default | Description               |
-|--------------|---------|---------------------------|
-| `el`         |         | target element            |
-| `distance`   |         | travel distance in px     |
-| `x`, `y`     |         | gesture center            |
-| `angle`      | `0`     | direction in degrees      |
-| `separation` | `40`    | gap between fingers in px |
-| `steps`      | `20`    | interpolation frames      |
+- `distance` — travel distance in px
+- `x`, `y` — gesture center
+- `angle` — direction in degrees (default `0`)
+- `separation` — gap between fingers in px (default `40`)
+- `steps` — interpolation frames (default `20`)
 
 ```js
 await new SwipeMotion(document.querySelector('#el'), 200, {
@@ -141,17 +171,53 @@ await new SwipeMotion(document.querySelector('#el'), 200, {
 }).perform()
 ```
 
-## Notes:
+## Add a motion
 
-- The module server only serves `/pointerdriver.js` and `/src/*/index.js`.
-- It sets permissive CORS headers so you can import it from any page.
+Motions are extensible, allowing support for more
+devices and interaction types.
 
-## HTTPS pages
+```
+Motion (base)
+├── PathMotion (drawing)
+│   ├── DragMotion
+│   ├── GlideMotion
+│   └── StrokeMotion
+└── GestureMotion (gestures)
+    ├── PinchMotion
+    ├── TwistMotion
+    └── SwipeMotion
+```
 
-If the target page is HTTPS,  
-importing pointerdriver from HTTP is blocked as mixed content.  
-Serve pointerdriver over HTTPS (see `bin/skill.md` for one approach).
+1. Create `motions/<name>/index.js`
+2. Extend `PathMotion` or `GestureMotion`
+3. Export from `motions/index.js`
 
+## Local server
+
+For local development:
+
+```bash
+npx github:TheProfs/pointerdriver
+```
+
+then in your target app Web Console:
+
+```js
+const { DragMotion } = await import('http://127.0.0.1:5619/pointerdriver.js')
+
+// execute motion ...
+```
+
+### Use HTTPS tunnels for https local dev
+
+If the target page is HTTPS, the HTTP import is blocked as mixed content.
+Use a Cloudflare Tunnel to wrap it in HTTPS:
+
+```bash
+cloudflared tunnel --url http://127.0.0.1:5619
+```
+
+Install via [Cloudflare Tunnel downloads][cftunnel].
 
 ## Run tests
 
@@ -166,3 +232,5 @@ npm test
 [test-badge]: https://github.com/TheProfs/pointerdriver/actions/workflows/test.yml/badge.svg
 [test]: https://github.com/TheProfs/pointerdriver/actions/workflows/test.yml
 [license]: https://opensource.org/licenses/MIT
+[skill-md]: bin/skill.md
+[cftunnel]: https://developers.cloudflare.com/cloudflare-one/connections/connect-networks/downloads/

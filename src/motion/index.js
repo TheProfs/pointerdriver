@@ -4,6 +4,8 @@ export class Motion {
   #el
   #platform
   #touches = new Map()
+  #lastTarget = null
+  #hitWarned = false
 
   constructor(el, opts = {}) {
     if (!(el instanceof Element))
@@ -67,12 +69,15 @@ export class Motion {
   hit(point) {
     const target = document.elementFromPoint(point.x, point.y)
 
-    if (!target || !this.#el.contains(target))
-      throw new RangeError(
-        `hit-test missed: (${point.x},${point.y}) outside element`
-      )
+    if (target && this.#el.contains(target))
+      return this.#lastTarget = target
 
-    return target
+    if (!this.#hitWarned) {
+      console.warn(`hit-test missed: (${point.x},${point.y}) outside element`)
+      this.#hitWarned = true
+    }
+
+    return this.#lastTarget ?? this.#el
   }
 
   delay(ms) {

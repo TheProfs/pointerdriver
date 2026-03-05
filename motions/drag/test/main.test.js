@@ -154,56 +154,22 @@ test('DragMotion', async t => {
   })
 
   await t.test('hit-test miss mid-motion', async t => {
-    await t.test('rejects with hit-test missed error', async t => {
+    await t.test('warns once and continues', async t => {
       const el = document.body.appendChild(
         Object.assign(document.createElement('div'), { id: 'el' })
       )
 
       document.elementFromPoint = x => (x < 11 ? el : null)
 
-      await t.assert.rejects(
-        () => new DragMotion(el, [
-          [10, 10, 0],
-          [13, 14, 0],
-        ]).perform(),
-        { name: 'Error', message: /hit-test missed/i }
-      )
-    })
-
-    await t.test('dispatches pointercancel then leave', async t => {
-      const el = document.body.appendChild(
-        Object.assign(document.createElement('div'), { id: 'el' })
-      )
-
-      document.elementFromPoint = x => (x < 11 ? el : null)
-
-      const dispatched = t.mockListen([
-        'pointerover',
-        'pointerenter',
-        'pointerdown',
-        'pointercancel',
-        'pointerout',
-        'pointerleave',
-        'pointerup',
-      ])
+      const warn = t.mock.method(console, 'warn')
 
       await new DragMotion(el, [
         [10, 10, 0],
         [13, 14, 0],
-      ]).perform().catch(() => null)
+      ]).perform()
 
-      t.assert.eventSequence(dispatched, [
-        'pointerover@el',
-        'pointerenter@HTML',
-        'pointerenter@BODY',
-        'pointerenter@el',
-        'pointerdown@el',
-        'pointercancel@el',
-        'pointerout@el',
-        'pointerleave@el',
-        'pointerleave@BODY',
-        'pointerleave@HTML',
-      ])
+      t.assert.strictEqual(warn.mock.callCount(), 1)
+      t.assert.match(warn.mock.calls[0].arguments[0], /hit-test missed/i)
     })
   })
 })

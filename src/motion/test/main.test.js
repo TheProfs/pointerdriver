@@ -63,17 +63,23 @@ test('Motion', async t => {
     })
 
     await t.test('hit-test outside element', async t => {
-      await t.test('throws RangeError', t => {
+      await t.test('warns once and returns element', t => {
         const el = document.body.appendChild(
           Object.assign(document.createElement('div'), { id: 'el' })
         )
 
         hit(document.body)
 
-        t.assert.throws(
-          () => new FooMotion(el).hit({ x: 10, y: 10 }),
-          { name: 'RangeError', message: /hit-test missed/i }
-        )
+        const warn = t.mock.method(console, 'warn')
+        const motion = new FooMotion(el)
+
+        const first = motion.hit({ x: 10, y: 10 })
+        const second = motion.hit({ x: 20, y: 20 })
+
+        t.assert.strictEqual(first, el)
+        t.assert.strictEqual(warn.mock.callCount(), 1)
+        t.assert.strictEqual(second, el)
+        t.assert.strictEqual(warn.mock.callCount(), 1)
       })
     })
   })

@@ -1,4 +1,4 @@
-import { JSDOM } from 'jsdom'
+import { JSDOM, VirtualConsole } from 'jsdom'
 import { assert } from 'node:test'
 
 assert.register('eventSequence', function(actual, expected, message) {
@@ -58,9 +58,13 @@ const installGlobals = win => {
 export function mockDOM() {
   if (this.dom) return this.dom
 
+  const vc = new VirtualConsole()
+  vc.sendTo(console, { omitJSDOMErrors: true })
+
   const dom = new JSDOM('<!doctype html><html><body></body></html>', {
     pretendToBeVisual: true,
     url: 'https://example.test/',
+    virtualConsole: vc,
   })
 
   const restore = installGlobals(dom.window)

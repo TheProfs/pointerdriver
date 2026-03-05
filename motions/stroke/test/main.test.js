@@ -80,15 +80,10 @@ test('StrokeMotion', async t => {
         'pointerover',
         'pointerenter',
         'pointerdown',
-        'touchstart',
-        'gotpointercapture',
         'pointermove',
-        'touchmove',
         'pointerup',
-        'lostpointercapture',
         'pointerout',
         'pointerleave',
-        'touchend',
       ])
 
       await new StrokeMotion(t.stage, [
@@ -103,16 +98,13 @@ test('StrokeMotion', async t => {
         'pointerenter@stage',
         'pointerenter@a',
         'pointerdown@a',
-        'touchstart@a',
         'pointermove@a',
-        'touchmove@a',
         'pointerup@a',
         'pointerout@a',
         'pointerleave@a',
         'pointerleave@stage',
         'pointerleave@BODY',
         'pointerleave@HTML',
-        'touchend@a',
       ])
     })
 
@@ -152,62 +144,24 @@ test('StrokeMotion', async t => {
   })
 
   await t.test('hit-test miss mid-motion', async t => {
-    t.beforeEach(t => Object.assign(t, {
-      stage: document.body.appendChild(
+    await t.test('warns once and continues', async t => {
+      const stage = document.body.appendChild(
         Object.assign(document.createElement('div'), { id: 'stage' })
-      ),
-      a: document.createElement('div'),
-    }))
-
-    t.beforeEach(t => {
-      t.a.id = 'a'
-      t.stage.append(t.a)
-      document.elementFromPoint = x => (x < 20 ? t.a : null)
-    })
-
-    await t.test('rejects with hit-test missed error', async t => {
-      await t.assert.rejects(
-        () => new StrokeMotion(t.stage, [
-          [10, 10, 0],
-          [30, 10, 0],
-        ]).perform(),
-        { name: 'Error', message: /hit-test missed/i }
       )
-    })
 
-    await t.test('dispatches pointercancel then leave then touchcancel', async t => {
-      const dispatched = t.mockListen([
-        'pointerover',
-        'pointerenter',
-        'pointerdown',
-        'touchstart',
-        'pointercancel',
-        'pointerout',
-        'pointerleave',
-        'touchcancel',
-      ])
+      const a = Object.assign(document.createElement('div'), { id: 'a' })
+      stage.append(a)
+      document.elementFromPoint = x => (x < 20 ? a : null)
 
-      await new StrokeMotion(t.stage, [
+      const warn = t.mock.method(console, 'warn')
+
+      await new StrokeMotion(stage, [
         [10, 10, 0],
         [30, 10, 0],
-      ]).perform().catch(() => null)
+      ]).perform()
 
-      t.assert.eventSequence(dispatched, [
-        'pointerover@a',
-        'pointerenter@HTML',
-        'pointerenter@BODY',
-        'pointerenter@stage',
-        'pointerenter@a',
-        'pointerdown@a',
-        'touchstart@a',
-        'pointercancel@a',
-        'pointerout@a',
-        'pointerleave@a',
-        'pointerleave@stage',
-        'pointerleave@BODY',
-        'pointerleave@HTML',
-        'touchcancel@a',
-      ])
+      t.assert.strictEqual(warn.mock.callCount(), 1)
+      t.assert.match(warn.mock.calls[0].arguments[0], /hit-test missed/i)
     })
   })
 })

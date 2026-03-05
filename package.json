@@ -5,8 +5,14 @@
   "type": "module",
   "exports": "./index.js",
   "imports": {
-    "#*": "./src/*/index.js",
-    "#test/utils": "./test/utils/index.js"
+    "#test/utils": "./test/utils/index.js",
+    "#pointer": "./src/pointer/index.js",
+    "#motion": "./src/motion/index.js",
+    "#path": "./src/path/index.js",
+    "#gesture": "./src/gesture/index.js",
+    "#font": "./src/font/index.js",
+    "#glass": "./src/glass/index.js",
+    "#*": "./motions/*/index.js"
   },
   "bin": {
     "pointerdriver": "bin/pointerdriver.js"
@@ -14,6 +20,7 @@
   "files": [
     "index.js",
     "src/",
+    "motions/",
     "bin/",
     "fonts/",
     "docs/",
@@ -22,7 +29,7 @@
   ],
   "scripts": {
     "start": "node --title=pointerdriver ./bin/pointerdriver.js",
-    "test": "node --test --test-concurrency=1 --test-timeout=5000 --import ./test/utils/setup.js \"**/*.test.js\""
+    "test": "node --test --test-concurrency=1 --test-timeout=5000 \"**/*.test.js\""
   },
   "engines": { "node": ">=24" },
   "keywords": ["pointer", "pencil", "stylus", "touch", "simulate"],

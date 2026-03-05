@@ -21,8 +21,6 @@ export class StrokeMotion extends PathMotion {
         .down(target, point, 0, n)
 
       try {
-        this.touchstart(pointer, point)
-
         for (let next = 1; next < n; next++) {
           await this.delay(points[next].ms - points[next - 1].ms)
 
@@ -30,17 +28,13 @@ export class StrokeMotion extends PathMotion {
           point = points[next]
 
           pointer.move(target, point, next, n)
-          this.touchmove(pointer, point)
           i = next
         }
 
         pointer.up(target, point, n - 1, n)
           .leave(target, point, n - 1, n)
-
-        this.touchend(pointer, point)
       } catch (err) {
         pointer.cancel(target, point, i, n)
-        this.touchcancel(pointer, point)
         throw new Error(`stroke aborted: ${err?.message ?? String(err)}`, { cause: err })
       }
     }

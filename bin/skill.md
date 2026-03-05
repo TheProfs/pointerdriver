@@ -1,80 +1,86 @@
 # pointerdriver skill
 
-Synthesize realistic pointer, touch, and gesture event sequences on a DOM element.
-Pointerdriver is a testing utility, not a drawing library.
-It dispatches events as a human-controlled browser would.
+Automates interaction with browser-based, gesture-heavy canvas apps.
 
-This skill is written for an agent that can:
-- run the `pointerdriver` module server locally, and
-- execute JavaScript in a real page context, such as DevTools console.
+Used to test webapps with complex HCI layers; whiteboard, graphics apps etc..
 
-## Mental model
+## How it works
 
-Pointerdriver has two core concepts:
+1. Import the module in your target's DevTools console
+2. Construct and run different motions
 
-- `Pointer`: per-contact state, emits `PointerEvent` and mouse compatibility events.
-- `Motion`: a human movement, implemented as a sequence of pointer lifecycle calls.
+## Parts
 
-You use motions directly.
-Motions are the public API.
+- **Motion**: the public API.
+  A human movement replayed as a stream of `PointerEvent`s.    
+  Each motion type maps to a device: mouse, touch, or pen.    
+- **Pointer**: internal per-contact state.  
+  Motions manage pointers; you do not use them directly.    
+- **Glass**: optional visual-inspection overlay.
 
-## Quick start
+## Set up
 
-1. Start the module server:
+Import motions in the target page's DevTools console:
 
-   ```bash
-   npx github:TheProfs/pointerdriver
-   ```
+```js
+const {
+  DragMotion, GlideMotion, StrokeMotion,
+  PinchMotion, TwistMotion, SwipeMotion,
+  Font, Glass,
+} = await import('https://cdn.jsdelivr.net/gh/TheProfs/pointerdriver@main/pointerdriver.js')
+```
 
-   It prints the URL to import from.
-   Default: `http://127.0.0.1:5619/pointerdriver.js`.
+For local server setup, see the project README.
 
-2. In the target page DevTools console, import the motions:
+## Run a motion
 
-   ```js
-   const {
-     DragMotion, GlideMotion, StrokeMotion,
-     PinchMotion, TwistMotion, SwipeMotion,
-     Font, Glass,
-   } = await import('http://127.0.0.1:5619/pointerdriver.js')
-   ```
+Pick a target element, build a points array, perform:
 
-3. Drive an element:
+```js
+const el = document.querySelector('#canvas')
+const r = el.getBoundingClientRect()
 
-   ```js
-   const el = document.querySelector('#el')
+await new DragMotion(el, [
+  [r.left + 30, r.top + 50, 0],
+  [r.left + 60, r.top + 80, 16],
+  [r.left + 90, r.top + 110, 32],
+]).perform()
+```
 
-   await new DragMotion(el, [
-     [30, 50, 0],
-     [60, 80, 16],
-   ]).perform()
-   ```
+- Points are `[x, y, ms]` in viewport coordinates.  
+- `ms` is relative to motion start and must be non-decreasing.  
+- Use `getBoundingClientRect()` to keep points inside the element.   
 
-4. `Glass` is an optional overlay that visualizes dispatched events
-   as colored dots.
-   - Wrap a motion callback in `new Glass(fn)` to enable it.
-   - Always include it by default. It only logs `isTrusted: false`
-     events so it only captures synthetic input.
-   - If the user asks to remove the glass/overlay/visualization,
-     just run motions directly without wrapping them in `Glass`.
-   - To tear down manually, call `glass.remove()` when done.
+## Glass
 
-## Motions
+Glass is an overlay that visualizes dispatched events
+as colored dots on the page.
+It only captures synthetic (`isTrusted: false`) events.
 
-Available motions exported from `pointerdriver.js`:
+Always include it by default.  
+Wrap motions in a `Glass` callback to enable:
 
-| Motion | Device | Events |
-|--------|--------|--------|
-| `DragMotion` | mouse | Pointer + Mouse |
-| `GlideMotion` | touch | Pointer + Touch |
-| `StrokeMotion` | pen | Pointer + Touch |
-| `PinchMotion` | 2-finger | Pointer + Touch + Gesture? |
-| `TwistMotion` | 2-finger | Pointer + Touch + Gesture? |
-| `SwipeMotion` | 2-finger | Pointer + Touch + Gesture? |
+```js
+const glass = new Glass(async () => {
+  await new DragMotion(el, points).perform()
+})
+```
 
-### `DragMotion`, `GlideMotion`, `StrokeMotion` points
+To remove the overlay: `glass.remove()`.
+If the user asks to remove visualization, run motions
+directly without wrapping in `Glass`.
 
-Constructor signature:
+## Motion types
+
+### Drawing
+
+| Motion         | Device | Events              |
+|----------------|--------|---------------------|
+| `DragMotion`   | mouse  | Pointer + Mouse     |
+| `GlideMotion`  | touch  | Pointer + Touch     |
+| `StrokeMotion` | pen    | Pointer             |
+
+Signature:
 
 ```js
 new DragMotion(el, points, opts).perform()
@@ -82,120 +88,113 @@ new GlideMotion(el, points, opts).perform()
 new StrokeMotion(el, points, opts).perform()
 ```
 
-`points` must be `[[x, y, ms], ...]`.
+`points` is `[[x, y, ms], ...]`.
 
-- `x`, `y`, `ms` must be finite numbers.
-- `ms` must be `>= 0`.
-- `ms` must be monotonically non-decreasing across points.
-- `ms` is relative to the motion start.
-  A point with the same `ms` as the previous point causes no delay.
+### Gestures
 
-### `PinchMotion`
+| Motion         | Gesture    | Events                       |
+|----------------|------------|------------------------------|
+| `PinchMotion`  | pinch      | Pointer + Touch + Gesture    |
+| `TwistMotion`  | rotate     | Pointer + Touch + Gesture    |
+| `SwipeMotion`  | two-finger | Pointer + Touch + Gesture    |
 
-Constructor signature:
+**PinchMotion:**
 
 ```js
 new PinchMotion(el, scale, {
   x, y,
-  distance = 100,
-  steps = 20,
-  ...opts
+  distance: 100,
+  steps: 20,
 }).perform()
 ```
 
-Constraints:
-- `scale` must be finite and `> 0`.
-- `x` and `y` are required and must be finite.
-- `distance` must be finite and `> 0`.
-- `steps` must be a positive integer.
+`scale` > 0. `x`, `y` required.
 
-### `TwistMotion`
-
-Constructor signature:
+**TwistMotion:**
 
 ```js
-new TwistMotion(el, degrees = 45, {
+new TwistMotion(el, degrees, {
   x, y,
-  radius = 80,
-  steps = 20,
-  ...opts
+  radius: 80,
+  steps: 20,
 }).perform()
 ```
 
-Constraints:
-- `degrees` must be finite.
-- `x` and `y` are required and must be finite.
-- `radius` must be finite and `> 0`.
-- `steps` must be a positive integer.
+`degrees` is the rotation amount. `x`, `y` required.
 
-### `SwipeMotion`
-
-Constructor signature:
+**SwipeMotion:**
 
 ```js
 new SwipeMotion(el, distance, {
   x, y,
-  angle = 0,
-  separation = 40,
-  steps = 20,
-  ...opts
+  angle: 0,
+  separation: 40,
+  steps: 20,
 }).perform()
 ```
 
-Constraints:
-- `distance` must be finite and `> 0`.
-- `x` and `y` are required and must be finite.
-- `angle` must be finite. `0` = right, `90` = down.
-- `separation` must be finite and `> 0`.
-- `steps` must be a positive integer.
+`angle`: `0` = right, `90` = down. `x`, `y` required.
 
-## Writing text
+Multi-touch motions advance via `requestAnimationFrame`.
+`steps` controls how many frames fire.
 
-Pass a string instead of a points array to write text
-as the target device.
+## Write text
+
+Pass a string instead of points to write text
+using the motion's device:
 
 ```js
+const el = document.querySelector('#canvas')
+
 await new StrokeMotion(el, 'hello', {
-  x: 100, y: 200, size: 30
+  x: 100, y: 200, size: 30,
 }).perform()
 ```
 
-- `size` — text height in pixels (required).
-- `x`, `y` — starting position in viewport coordinates (required).
-- `font` — URL string to an SVG font, or a `Font` instance.
-  Defaults to bundled Hershey Script.
+`x`, `y`, and `size` are required.
 
-Loading a custom font:
+### Resize text
+
+`size` sets glyph height in pixels.
+Keep text within element bounds — large sizes or
+long strings push coordinates outside the target.
+
+Use `getBoundingClientRect()` to pick a safe size:
+
+```js
+const r = el.getBoundingClientRect()
+const size = Math.min(r.height * 0.4, 60)
+
+await new StrokeMotion(el, 'hello', {
+  x: r.left + 20, y: r.top + size + 10, size,
+}).perform()
+```
+
+### Custom fonts
+
+Load an SVG font via `Font.load`:
 
 ```js
 const font = await Font.load('https://example.com/font.svg')
 
 await new StrokeMotion(el, 'hello', {
-  font, x: 100, y: 200, size: 30
+  font, x: 100, y: 200, size: 30,
 }).perform()
 ```
 
-Multi-stroke glyphs (letters with pen lifts like "i", "t")
-dispatch separate down-move-up cycles per stroke.
+Default font is bundled Hershey Script.
 
-## Coordinates, hit-testing, and common failures
+## Coordinates and hit-testing
 
-All hit-testing is based on `document.elementFromPoint(x, y)`.
-Each motion validates that the hit target is contained within `el`.
-If not, it throws:
+All coordinates must be viewport client coordinates.
+Each motion checks `document.elementFromPoint(x, y)`
+against `el`.
+If a point lands outside, the motion warns once
+and continues with the last known target.
 
-`RangeError: hit-test missed: (x,y) outside element`
-
-Practical rules:
-- Pass the element you want to drive as `el`.
-  For canvas, this is usually the `<canvas>`.
-- Ensure all coordinates are in viewport client coordinates.
-- Use `getBoundingClientRect()` to generate safe points inside the element.
-
-Example point builder:
+Normalized point builder:
 
 ```js
-const el = document.querySelector('#el')
 const r = el.getBoundingClientRect()
 const p = (nx, ny, ms = 0) => [
   r.left + 1 + nx * (r.width - 2),
@@ -208,104 +207,3 @@ await new GlideMotion(el, [
   p(0.8, 0.8, 32),
 ]).perform()
 ```
-
-## Timing and realism
-
-For point-based motions, the delay between points is:
-`points[i].ms - points[i - 1].ms`.
-
-Use cases:
-- Fast, deterministic: keep all `ms` at `0`.
-- Realistic frame pacing: use `0, 16, 32, ...`.
-
-`PinchMotion`, `TwistMotion`, and `SwipeMotion` advance using `requestAnimationFrame`.
-`steps` controls the number of frames and the number of move events per pointer.
-
-During multi-touch motions, dispatched `TouchEvent`s include `scale` and `rotation`.
-The final `touchend` resets them to `scale=1` and `rotation=0`.
-
-## Environment requirements
-
-Motions execute in a DOM environment.
-Common missing APIs fail loudly:
-
-- `PointerEvent` must exist.
-- `crypto.getRandomValues` must exist.
-- Touch and pen motions require `Touch` and `TouchEvent`.
-  If `TouchEvent` is missing, touch dispatch throws.
-- `GestureEvent` is optional.
-  If it does not exist, gesture dispatch is skipped, but touch events still fire.
-
-If you are running in a test environment, install DOM globals first.
-This repo includes a JSDOM harness in `test/utils/index.js`.
-
-## HTTPS and mixed content
-
-If the target app runs on HTTPS, importing pointerdriver from HTTP will fail.
-This is a browser mixed-content restriction:
-
-- Page: `https://…`
-- Import: `http://127.0.0.1:5619/pointerdriver.js`
-
-Fix by serving pointerdriver over HTTPS.
-
-### Cloudflare Tunnel approach
-
-Use a Cloudflare Tunnel to wrap the local HTTP server in an HTTPS URL.
-
-1. Start pointerdriver locally:
-
-   ```bash
-   npx github:TheProfs/pointerdriver
-   ```
-
-2. In another terminal, create a tunnel to the local server:
-
-   ```bash
-   cloudflared tunnel --url http://127.0.0.1:5619
-   ```
-
-   Cloudflare prints an `https://…` URL.
-
-3. Import from the HTTPS tunnel URL:
-
-   ```js
-   const { DragMotion } = await import(
-     'https://<your-tunnel-host>/pointerdriver.js'
-   )
-   ```
-
-Notes:
-- This also makes the module reachable from real devices, such as iOS Safari.
-- If the target page has a strict CSP, it may block module imports from
-  unknown origins.
-  In that case, host pointerdriver on an allowed origin, ideally the same
-  origin as the app.
-
-## CLI server knobs
-
-The module server is `bin/pointerdriver.js`.
-It serves `pointerdriver.js` plus internal `/src/*/index.js` modules.
-It only responds to `GET/HEAD` for those paths, and sets CORS headers.
-
-Configuration via environment variables:
-
-```bash
-HOST=127.0.0.1 PORT=5619 npx github:TheProfs/pointerdriver
-```
-
-Use `HOST=0.0.0.0` if you need LAN access.
-For HTTPS pages, prefer the Cloudflare Tunnel method instead of raw LAN HTTP.
-
-## What pointerdriver does not do
-
-- It does not synthesize browser default actions.
-  There is no `click` event synthesis, scrolling, text input,
-  or focus behavior.
-- It does not bypass CSP, cross-origin iframes,
-  or browser security policies.
-
-## Reference
-
-For the event ordering and semantics this library targets, read:
-- `docs/spec/spec.md`

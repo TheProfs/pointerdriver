@@ -53,19 +53,16 @@ test('StrokeMotion with string', async t => {
     )
   })
 
-  await t.test('dispatches touchstart and touchend', async t => {
+  await t.test('does not dispatch touch events', async t => {
     const dispatched = t.mockListen([
-      'touchstart', 'touchend',
+      'touchstart', 'touchmove', 'touchend',
     ])
 
     await new StrokeMotion(t.stage, 'e', {
       font: t.font, size: 30, x: 10, y: 10,
     }).perform()
 
-    t.assert.ok(
-      dispatched.some(e => e.type === 'touchstart') &&
-      dispatched.some(e => e.type === 'touchend')
-    )
+    t.assert.strictEqual(dispatched.length, 0)
   })
 
   await t.test('pen lift dispatches multiple down-up cycles',

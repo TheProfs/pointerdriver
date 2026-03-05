@@ -159,63 +159,33 @@ test('SwipeMotion', async t => {
   })
 
   await t.test('hit-test miss mid-gesture', async t => {
-    t.beforeEach(t => Object.assign(t, {
-      stage: document.body.appendChild(
+    await t.test('warns once and continues', async t => {
+      const stage = document.body.appendChild(
         Object.assign(document.createElement('div'), { id: 'stage' })
-      ),
-      a: document.createElement('div'),
-      b: document.createElement('div'),
-    }))
+      )
 
-    t.beforeEach(t => {
-      t.a.id = 'a'
-      t.b.id = 'b'
-      t.stage.append(t.a, t.b)
+      const a = Object.assign(document.createElement('div'), { id: 'a' })
+      const b = Object.assign(document.createElement('div'), { id: 'b' })
+      stage.append(a, b)
 
       document.elementFromPoint = (x, y) => {
         if (x > 50) return null
-        return y < 20 ? t.a : t.b
+        return y < 20 ? a : b
       }
-    })
 
-    await t.test('rejects with hit-test missed error', async t => {
-      await t.assert.rejects(
-        () => new SwipeMotion(t.stage, 100, {
-          x: 20,
-          y: 20,
-          angle: 0,
-          separation: 10,
-          steps: 2,
-          platform: testPlatform,
-        }).perform(),
-        { name: 'Error', message: /hit-test missed/i }
-      )
-    })
+      const warn = t.mock.method(console, 'warn')
 
-    await t.test('dispatches pointercancel and touchcancel for both contacts', async t => {
-      const dispatched = t.mockListen([
-        'pointercancel',
-        'touchcancel',
-      ])
-
-      await new SwipeMotion(t.stage, 100, {
+      await new SwipeMotion(stage, 100, {
         x: 20,
         y: 20,
         angle: 0,
         separation: 10,
         steps: 2,
         platform: testPlatform,
-      }).perform().catch(() => null)
+      }).perform()
 
-      t.assert.deepStrictEqual(
-        dispatched.map(e => `${e.type}@${e.target}`),
-        [
-          'pointercancel@b',
-          'touchcancel@b',
-          'pointercancel@a',
-          'touchcancel@a',
-        ]
-      )
+      t.assert.ok(warn.mock.callCount() >= 1)
+      t.assert.match(warn.mock.calls[0].arguments[0], /hit-test missed/i)
     })
   })
 })

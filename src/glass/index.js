@@ -41,6 +41,42 @@ const css = `
       rgba(255, 255, 255, 0.06)
     );
   }
+
+  button {
+    position: absolute;
+    top: calc(1rem + env(safe-area-inset-top, 0px));
+    right: calc(1rem + env(safe-area-inset-right, 0px));
+    pointer-events: auto;
+    cursor: pointer;
+    background: none;
+    color: light-dark(
+      rgba(0, 0, 0, 0.25),
+      rgba(255, 255, 255, 0.25)
+    );
+    border: 0.5px solid currentColor;
+    border-radius: 5px;
+    font: 200 11px/1 system-ui, -apple-system, sans-serif;
+    padding: 6px 10px;
+    display: inline-flex;
+    align-items: baseline;
+    justify-content: center;
+    gap: 3px;
+
+    span { translate: 0 0.5px; }
+
+    &:hover {
+      color: light-dark(
+        rgba(0, 0, 0, 0.45),
+        rgba(255, 255, 255, 0.45)
+      );
+    }
+  }
+
+  &[data-minimized] {
+    canvas { display: none; }
+    table { display: none; }
+    button { opacity: 0.5; }
+  }
 }
 `
 
@@ -48,6 +84,7 @@ const js = `;(() => {
   const el = document.querySelector('[data-glass]')
   const canvas = el.querySelector('canvas')
   const tbody = el.querySelector('tbody')
+  const btn = el.querySelector('button')
   const ctx = canvas.getContext('2d')
   const dpr = devicePixelRatio || 1
 
@@ -96,12 +133,14 @@ const js = `;(() => {
 
     if (x == null || y == null) return
 
-    ctx.fillStyle = f.color
-    ctx.globalAlpha = 0.8
-    ctx.beginPath()
-    ctx.arc(x, y, 3, 0, Math.PI * 2)
-    ctx.fill()
-    ctx.globalAlpha = 1
+    if (!el.hasAttribute('data-minimized')) {
+      ctx.fillStyle = f.color
+      ctx.globalAlpha = 0.8
+      ctx.beginPath()
+      ctx.arc(x, y, 1, 0, Math.PI * 2)
+      ctx.fill()
+      ctx.globalAlpha = 1
+    }
 
     const entry = counts.get(f.name)
 
@@ -121,6 +160,12 @@ const js = `;(() => {
 
     counts.set(f.name, { n: 1, cell: countCell })
   }
+
+  btn.addEventListener('click', () => {
+    el.toggleAttribute('data-minimized')
+    btn.innerHTML = el.hasAttribute('data-minimized')
+      ? '<span>\\u25cf</span> glass' : '<span>\\u2715</span> close'
+  })
 
   for (const [type] of lookup)
     document.addEventListener(type, dot, true)
@@ -146,10 +191,13 @@ export class Glass {
     const table = document.createElement('table')
     table.innerHTML = '<tbody></tbody>'
 
+    const btn = document.createElement('button')
+    btn.innerHTML = '<span>\u2715</span> close'
+
     const script = document.createElement('script')
     script.textContent = js
 
-    this.#el.append(style, canvas, table, script)
+    this.#el.append(style, canvas, table, btn, script)
     document.body.appendChild(this.#el)
 
     if (typeof fn === 'function') fn()
