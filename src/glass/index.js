@@ -128,6 +128,9 @@ const js = `;(() => {
     const f = lookup.get(e.type)
     if (!f) return
 
+    if (f.name === 'pointer' && e.pointerType !== 'pen')
+      return
+
     const x = e.changedTouches?.[0]?.clientX ?? e.clientX
     const y = e.changedTouches?.[0]?.clientY ?? e.clientY
 

@@ -51,6 +51,26 @@ await new DragMotion(el, [
 - `ms` is relative to motion start and must be non-decreasing.  
 - Use `getBoundingClientRect()` to keep points inside the element.   
 
+## Element targeting
+
+The passed element should be the **container** of the
+actual element you're targeting:
+
+For example:
+
+```html
+<div id="board">
+  <canvas></canvas>
+</div>
+```
+
+```js
+await new DragMotion(document.querySelector('#board'), [
+  [30, 50, 0],
+  [60, 80, 16],
+]).perform()
+```
+
 ## Glass
 
 Glass is an overlay that visualizes dispatched events

@@ -111,7 +111,7 @@ event stream and dispatches it to the passed `element`:
 > "swipe across an element using 1 finger, and draw a square":
 
 ```js
-await new DragMotion(document.querySelector('#whiteboard'), [
+await new DragMotion(document.querySelector('#board'), [
   [30, 50, 0],
   [60, 80, 16],
   [120, 140, 32],
@@ -122,7 +122,7 @@ await new DragMotion(document.querySelector('#whiteboard'), [
 > then lift up":
 
 ```js
-await new TwistMotion(document.querySelector('#whiteboard'), 45, {
+await new TwistMotion(document.querySelector('#board'), 45, {
   x: 100, y: 100
 }).perform()
 ```
@@ -130,16 +130,18 @@ await new TwistMotion(document.querySelector('#whiteboard'), 45, {
 ### Element targeting
 
 The passed element should be the **container** of the  
-actual element you're targeting:
+actual element you're targeting.
+
+For example:
 
 ```html
-<div id="whiteboard">
+<div id="board">
   <canvas></canvas>
 </div>
 ```
 
 ```js
-await new DragMotion(document.querySelector('#whiteboard'), [
+await new DragMotion(document.querySelector('#board'), [
   [30, 50, 0],
   [60, 80, 16],
 ]).perform()
