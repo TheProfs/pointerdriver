@@ -10,6 +10,10 @@ const css = `
     display: block;
     width: 100%;
     height: 100%;
+    background: light-dark(
+      rgba(0, 0, 0, 0.15),
+      rgba(255, 255, 255, 0.15)
+    );
   }
 
   table {
